@@ -10,3 +10,6 @@ apps/ios/build/
 local-models/
 dicecam-local-test-corpus-2026-11-06.zip
 CORPUS_NOTES.md
+local-data/
+DiceTower-*.zip
+__pycache__/
