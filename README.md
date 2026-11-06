@@ -16,6 +16,7 @@ The prototype will run recognition entirely on the phone and work offline. Train
 
 - [VISION.md](VISION.md): product direction, principles, and boundaries.
 - [MVP_DESIGN.md](MVP_DESIGN.md): prior-work findings, dataset audit, training experiments, native app architecture, and measurable acceptance gates.
+- [CORPUS_ASSESSMENT.md](CORPUS_ASSESSMENT.md): inspection of the supplied November 2026 test archive, including usable pip-d6 examples and ground-truth limitations.
 
 The proposed starting point is the local `../dicecam/MyObjectDetector.mlproj` Create ML detector and its labeled images. [egirard/DiceCAM](https://github.com/egirard/DiceCAM) supplies useful prior work and an annotation editor; its latest available labels need reconciliation with local exports. The design records what was actually found rather than assuming every historical image is training-ready.
 
