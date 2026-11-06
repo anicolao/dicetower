@@ -6,7 +6,7 @@ The long-term goal is support for common tabletop dice, including polyhedral and
 
 ## The experience we want
 
-A player mounts an iPhone above a black-felt tray, checks its framing, and chooses how many dice to roll. The app watches the roll, waits for it to settle, and displays each face value and the total. The player sees which physical dice produced the answer and confirms it. If a die is hidden, cocked, unreadable, or missing, the app explains what needs attention.
+A player mounts an iPhone above a black-felt tray, checks its framing, and arms a roll. The app watches the roll, waits for it to settle, infers the dice count, and displays each face value and the total. The player sees which physical dice produced the answer and confirms it. If a die is hidden, cocked, unreadable, or missing, the app explains what needs attention.
 
 The prototype must establish that this loop is dependable before adding game rules or unattended delivery. A convincing single-frame demonstration is useful, but a sequence of correctly handled rolls is the product.
 

@@ -8,7 +8,7 @@ DiceTower will turn physical dice rolls into results that digital games can use.
 
 The first version will recognize the upper faces of **one to six pip-based d6 dice** in a 3D-printed tray lined with black felt. A printed holder will suspend the iPhone in a fixed, nearly perpendicular overhead position, with the tray edges visible. Initial supported dice will be opaque, light-colored dice with dark pips; other colors will be evaluated separately.
 
-The player will select the expected number of dice, arm a roll, and roll into the tray. After motion stops, the app will propose individual values and their total, with boxes over the dice for inspection. The player can confirm, correct, or retry. A result will enter local history and become available to copy/share only after confirmation. Uncertain or incomplete observations will ask for intervention.
+The player will arm a roll and roll into the tray. The app will infer how many dice are present. After motion stops, the app will propose individual values and their total, with boxes over the dice for inspection. The player can confirm, correct, or retry. A result will enter local history and become available to copy/share only after confirmation. Uncertain or incomplete observations will ask for intervention.
 
 The prototype will run recognition entirely on the phone and work offline. Training will happen on a Mac. Digital game integrations, arbitrary camera placement, polyhedral dice, and automatic submission to games are later work.
 

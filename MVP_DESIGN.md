@@ -6,7 +6,7 @@ Status: proposed for PR1 review; documentation only. Evidence inspected on 2026-
 
 Build a SwiftUI iOS app using AVFoundation for camera capture, Vision/Core ML for a **single six-class object detector**, and a deterministic roll state machine. Train on a Mac with Create ML, initially reusing audited historical images. Detect each die's upper face and classify its value directly as `1` through `6`. Do not start with a separate pip counter or a detector/classifier cascade.
 
-The supported envelope is one to six opaque, light-colored d6 dice with dark pips, lying flat with fully visible tops on black felt. The player supplies the expected count. Diffuse lighting and a rigid overhead mount are part of the prototype. Test touching dice, tray-edge positions, and repeated values explicitly. Other dice and obstructed scenes should lead to intervention; a six-class detector alone cannot guarantee rejection of every unknown object.
+The supported envelope is one to six opaque, light-colored d6 dice with dark pips, lying flat with fully visible tops on black felt. The app infers the count from the scene; the player never specifies a dice count in advance. Diffuse lighting and a rigid overhead mount are part of the prototype. Test touching dice, tray-edge positions, and repeated values explicitly. Other dice and obstructed scenes should lead to intervention; a six-class detector alone cannot guarantee rejection of every unknown object.
 
 Propose iOS 18 and an iPhone 13 as the first reference device. Confirm the owner's actual device before implementation, then record its hardware, iOS version, camera, tray dimensions, and mount height in every performance report. No simulator measurement substitutes for phone results. Install through Xcode for the prototype; App Store distribution is outside this milestone.
 
@@ -57,7 +57,7 @@ Assign groups before augmentation: target 70% training, 15% validation, 15% hist
 
 Reuse old images for initial training, but new-rig evaluation is mandatory. First capture 60 development rolls on the mounted iPhone across counts 1–6 to measure domain shift and tune framing. If failures warrant it, collect an initial 300–600 additional independently arranged labeled stills over at least three sessions, aiming for at least 200 training face instances per value after curation. Include center/edge positions, all rotations, different supported dice sizes, repeated values, touching dice, shadows, and modest exposure changes; include approximately 10–20% genuinely empty scenes. Prioritize observed failure categories, not adjacent near-identical frames.
 
-Keep separate challenge captures of hands, movement, cocked/stacked dice, glare, dark dice, and out-of-tray dice. These evaluate intervention behavior and inform future labels; they are not automatically valid negatives for the face detector. Reserve a final new-rig test session before tuning: at least 300 full supported roll clips (50 per expected count) plus 100 invalid/empty/moving/obstructed sequences. Human-label settled values, expected count, validity, and the time motion truly stops. Keep this set untouched until the candidate and thresholds are frozen. If it drives a change, it becomes development evidence and a fresh final test is required.
+Keep separate challenge captures of hands, movement, cocked/stacked dice, glare, dark dice, and out-of-tray dice. These evaluate intervention behavior and inform future labels; they are not automatically valid negatives for the face detector. Reserve a final new-rig test session before tuning: at least 300 full supported roll clips (50 per ground-truth dice count) plus 100 invalid/empty/moving/obstructed sequences. Human-label settled values, actual dice count, validity, and the time motion truly stops. Keep this set untouched until the candidate and thresholds are frozen. If it drives a change, it becomes development evidence and a fresh final test is required.
 
 ## 5. Training and model selection
 
@@ -81,11 +81,11 @@ Export the chosen Core ML artifact, inspect its input/output contract, class ord
 
 | Component | Responsibility |
 | --- | --- |
-| SwiftUI screens | Setup/calibration, count selector, live preview and overlays, result confirmation/correction, history, explicit diagnostic export |
+| SwiftUI screens | Setup/calibration, live preview and overlays, result confirmation/correction, history, explicit diagnostic export |
 | Capture service | Request camera permission with a purpose string; configure rear camera; deliver timestamped pixel buffers; handle interruption/backgrounding/rotation |
 | Frame processor | Apply tray transform, compute motion/quality signals, schedule one inference at a time, discard obsolete work |
 | Detector | Own one loaded Core ML/Vision model; return frame-stamped boxes, value labels, and scores in canonical tray coordinates |
-| Roll coordinator | Own session/roll identity and lifecycle, enforce expected count and stable evidence, prevent stale/duplicate results |
+| Roll coordinator | Own session/roll identity and lifecycle, infer a stable count, check scene completeness, prevent stale/duplicate results |
 | Result store | Persist confirmed values and corrections locally; provide copy/share export without requiring a game integration |
 
 Keep capture configuration and inference off the main thread; UI updates return to the main actor. Start with inference at approximately 10 Hz and a 30 fps preview; keep a queue depth of one and drop late buffers. Use timestamp-based stability windows, not an assumed frame rate. Clear pending results when the app is interrupted and ignore completions carrying an old session/roll identifier.
@@ -96,15 +96,15 @@ Use `VNCoreMLModel`/`VNCoreMLRequest` for an exported compatible detector, follo
 
 `Needs setup → Ready → Armed → Moving → Settling → Proposed → Confirmed`
 
-1. Calibration and an empty-tray reference establish `Ready`. The player selects expected count (1–6) and taps **Arm roll**. Require a clear tray before arming each new roll in this MVP; partial rerolls are later work.
+1. Calibration and an empty-tray reference establish `Ready`. The player taps **Arm roll** without entering a dice count. Require a clear tray before arming each new roll in this MVP; partial rerolls are later work.
 2. Require observed activity after arming before entering `Settling`. A static arrangement at launch is not a new roll. A brief hand movement can be activity but cannot by itself establish a valid settled scene.
 3. Estimate motion from low-resolution frame differences inside the tray, calibrated against empty-scene noise. Start with at least 0.8 seconds below the motion threshold. Any renewed motion resets the window.
-4. Require exactly the selected number of nonduplicate high-score detections, all wholly inside the usable tray, consistently matched by position/overlap and value for at least 0.6 seconds and five processed observations. Start with matched IoU ≥0.5 and center drift ≤10% of face width; tune on development clips. Check weak extra detections and unexplained foreground regions against the empty reference as veto signals. They can request help but do not supply face values.
-5. Quality failures, count mismatch, changed values, unmatched regions, or unstable locations reset stability and explain the problem. After five seconds without a valid proposal, offer retry/reposition/manual entry; never force an answer. A count check helps detect a missed die, but cannot prove a stack or unknown object is absent.
+4. Infer a candidate count from one to six nonduplicate high-score detections. Require the same count and complete set of dice, all wholly inside the usable tray, consistently matched by position/overlap and value for at least 0.6 seconds and five processed observations. Start with matched IoU ≥0.5 and center drift ≤10% of face width; tune on development clips. Check weak extra detections and unexplained foreground regions against the empty reference as completeness vetoes. Require each significant foreground region to be explained by detected dice, allowing a touching cluster to contain several faces. Calibrate this check against noise, shadows, and felt texture. Foreground analysis may request help but must not invent face values or demand an advance count.
+5. Quality failures, a changing inferred count, more than six candidates, changed values, unexplained foreground, or unstable locations reset stability and explain the problem. After five seconds without a valid proposal, offer retry/reposition/manual entry; never force an answer. A stable count alone cannot establish completeness: a consistently missed die is still an error. Foreground checks, challenge testing, and the player’s inspection of the proposed boxes must address that risk; none can prove a hidden die is absent.
 6. Show a frozen annotated frame, values, and total in `Proposed`. Renewed motion before confirmation invalidates the proposal. The player may confirm, edit values/count, or retry. Persist edits as manual corrections, with both original observations and final values. Manual entry must be visibly distinguished from recognition.
 7. Emit one local result only after confirmation. Lock that roll ID against duplicate confirmation. Keep it in history while the player removes dice and explicitly arms another roll. Two successive rolls with identical values still have distinct IDs; unchanged dice never create repeated events.
 
-Confirmed record: schema version, UUID roll/session IDs, confirmation timestamp, per-die values and tray boxes, total, expected count, model/preprocessing versions, observed scores, original proposed values, final values, and correction/manual-entry status. Boxes describe this observation, not persistent physical identities. Store metadata locally; retain no frames by default. Offer JSON through the native share sheet and a readable value/total string through copy. No background network transport in the MVP.
+Confirmed record: schema version, UUID roll/session IDs, confirmation timestamp, per-die values and tray boxes, total, observed count, final confirmed count, model/preprocessing versions, observed scores, original proposed values, final values, and correction/manual-entry status. Boxes describe this observation, not persistent physical identities. Store metadata locally; retain no frames by default. Offer JSON through the native share sheet and a readable value/total string through copy. No background network transport in the MVP.
 
 ## 7. Validation and acceptance gates
 
@@ -119,14 +119,16 @@ Freeze the supported dice sets, rig, model, preprocessing, and thresholds before
 | Lifecycle | Zero duplicate persisted results, stale proposals after interruption, or spontaneous events on unchanged dice in replay and live tests; repeat identical-valued rolls and rapid remove/reroll explicitly |
 | Speed and endurance | On the recorded reference phone, p95 inference ≤100 ms and p95 settle-to-proposal ≤2 seconds among successful proposals, plus the coverage gate above; run 20 minutes without unbounded queue/memory growth or thermal shutdown |
 
-Also exercise camera permission denied, camera unavailable/interrupted, background/foreground, recalibration, holder movement, editing, count changes, storage failure, and share cancellation. A correction does not count as recognition success. Report detector-only metrics alongside complete-roll metrics; publish failures and latency distributions, not just averages. If a gate fails, revise the data or supported envelope explicitly before calling the prototype ready.
+Include deliberately missed-die proposals in evaluation: dropping one or several visible dice must fail count and complete-roll accuracy even when the remaining values are correct. Test varying counts without any advance count input.
+
+Also exercise camera permission denied, camera unavailable/interrupted, background/foreground, recalibration, holder movement, editing, varying dice counts between rolls, storage failure, and share cancellation. A correction does not count as recognition success. Report detector-only metrics alongside complete-roll metrics; publish failures and latency distributions, not just averages. If a gate fails, revise the data or supported envelope explicitly before calling the prototype ready.
 
 ## 8. Implementation sequence after design review
 
 1. **Data and rig audit:** reconcile authoritative labels, resolve `0`, verify permissions, create manifests and grouped splits, choose phone/mount geometry, collect development clips. Deliver a data inventory and labeled overlays.
 2. **Model baseline:** run A/B, and C only if indicated. Deliver reproducible recipes, evaluation report, model card, and a candidate Core ML artifact. If face scale is inadequate, fix it here.
 3. **Native capture and inference:** implement calibration, preview, transforms, bounded processing, and overlay diagnostics; verify fixture parity and device performance.
-4. **Complete roll flow:** implement lifecycle, expected-count checks, confirmation/correction, local history, and copy/share; replay interruption and duplicate-event scenarios.
+4. **Complete roll flow:** implement lifecycle, inferred-count stability and completeness checks, confirmation/correction, local history, and copy/share; replay interruption and duplicate-event scenarios.
 5. **Independent acceptance:** freeze the candidate, evaluate the reserved clips and live endurance sessions, document results and remaining limitations. Decide whether to collect more targeted data or expand scope only after these gates pass.
 
 Future source layout can separate `DiceTower/` (app), `Training/` (preparation/recipes), `Evaluation/` (fixtures/reports), and model metadata. Keep large datasets, captures, checkpoints, and private exports outside ordinary Git; use a versioned artifact store with hashes and documented retrieval. None of these components or directories is implemented in PR1.
@@ -135,6 +137,6 @@ Future source layout can separate `DiceTower/` (app), `Training/` (preparation/r
 
 The proposal chooses a six-class detector over pip geometry because there is a relevant native model and labeled corpus to test. Touching-dice misses or systematic value confusions may later justify a different architecture, but first measure them under the controlled rig. Black felt and an overhead mount reduce variability; they do not eliminate glare, side-face confusion, or detection omissions.
 
-Before implementation, confirm the actual phone and dice sets, tray dimensions, access to Gene's latest labels, and permissions for any imported artifacts. The proposed count selection, clear-tray rearming, manual confirmation, and copy/share output are deliberate MVP constraints for review. Live digital game delivery and polyhedral recognition remain future work.
+Before implementation, confirm the actual phone and dice sets, tray dimensions, access to Gene's latest labels, and permissions for any imported artifacts. The count is inferred automatically, with no advance count selection. Clear-tray rearming, manual confirmation, and copy/share output remain deliberate MVP constraints for review. Live digital game delivery and polyhedral recognition remain future work.
 
 The repository uses GPL-3.0-only for original work. No historical source code, images, or weights are imported by this PR. Audit dataset permissions separately from repository code licenses, preserve applicable upstream notices, and record training-weight terms before distributing a trained artifact. The upstream repository's Apache-2.0 license alone does not establish provenance for every image held outside it.
