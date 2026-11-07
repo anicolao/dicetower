@@ -2,9 +2,9 @@ import XCTest
 @testable import DiceCaptureCore
 
 final class RecognitionMotionMonitorTests: XCTestCase {
-    private func frame(_ value: UInt8 = 30, patch: Int? = nil) -> AnalysisFrame {
+    private func frame(_ value: UInt8 = 30, patch: Int? = nil, patchValue: UInt8 = 220) -> AnalysisFrame {
         var pixels = [UInt8](repeating: value, count: 96 * 128)
-        if let patch { for y in 24..<36 { for x in patch..<patch + 12 { pixels[y * 96 + x] = 220 } } }
+        if let patch { for y in 24..<36 { for x in patch..<patch + 12 { pixels[y * 96 + x] = patchValue } } }
         return .init(width: 96, height: 128, pixels: pixels)
     }
     private func settled() -> RecognitionMotionMonitor {
@@ -76,5 +76,13 @@ final class RecognitionMotionMonitorTests: XCTestCase {
         XCTAssertFalse(monitor.observe(frame(patch: 12), at: 0.25).newRoll)
         XCTAssertTrue(monitor.observe(frame(patch: 12), at: 0.30).newRoll)
         XCTAssertFalse(monitor.observe(frame(patch: 36), at: 0.35).newRoll)
+    }
+    func testReferenceAndSettlingAnchorDifferenceCannotRepeatedlyRearm() {
+        var monitor = RecognitionMotionMonitor()
+        for i in 0...4 { _ = monitor.observe(frame(patch: 12, patchValue: UInt8(30 + min(i, 3))), at: Double(i) * 0.05) }
+        XCTAssertFalse(monitor.observe(frame(patch: 12, patchValue: 26), at: 0.25).newRoll)
+        XCTAssertFalse(monitor.observe(frame(patch: 12, patchValue: 23), at: 0.30).newRoll)
+        XCTAssertTrue(monitor.observe(frame(patch: 12, patchValue: 23), at: 0.35).newRoll)
+        for i in 8...40 { XCTAssertFalse(monitor.observe(frame(patch: 12, patchValue: 23), at: Double(i) * 0.05).newRoll) }
     }
 }

@@ -74,7 +74,10 @@ class SceneMonitor(private val threshold: Double = .012) {
         } else {
             if(difference(frame,sceneReference?:prior,true)>threshold) {
                 changeSamples++
-                if(changeSamples>=2 && !movementReported){rearm=true;movementReported=true}
+                if(changeSamples>=2 && !movementReported){
+                    rearm=true;movementReported=true
+                    if(still){still=false;since=time;anchor=frame;samples=1}
+                }
             } else changeSamples=0
             if(difference(frame,prior,true)>threshold) {
                 still=false;anchor=null;samples=0
@@ -82,7 +85,7 @@ class SceneMonitor(private val threshold: Double = .012) {
                 still=false;since=time;anchor=frame;samples=1
             } else {
                 samples++
-                if(time-since+1e-9>=.2 && samples>=3){if(!still){sceneReference=frame;changeSamples=0};still=true;movementReported=false}
+                if(time-since+1e-9>=.2 && samples>=3){if(!still){sceneReference=frame;changeSamples=0;movementReported=false};still=true}
             }
         }
         invalidated=gap || (wasStill && !still)

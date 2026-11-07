@@ -43,7 +43,10 @@ public struct RecognitionMotionMonitor: Sendable {
         // returning to the old scene clears the candidate instead of rearming.
         if frame.spatialDifference(from: sceneReference ?? previous) > parameters.motionThreshold {
             changeSamples += 1
-            if changeSamples >= 2 && !movementReported { newRoll = true; movementReported = true }
+            if changeSamples >= 2 && !movementReported {
+                newRoll = true; movementReported = true
+                if still { still = false; anchor = frame; quietSince = time; quietSamples = 1 }
+            }
         } else { changeSamples = 0 }
         if frame.spatialDifference(from: previous) > parameters.motionThreshold {
             still = false; anchor = nil; quietSince = nil; quietSamples = 0
@@ -54,8 +57,8 @@ public struct RecognitionMotionMonitor: Sendable {
             } else {
                 quietSamples += 1
                 if time - (quietSince ?? time) + 1e-9 >= 0.2 && quietSamples >= 3 {
-                    if !still { sceneReference = frame; changeSamples = 0 }
-                    still = true; movementReported = false
+                    if !still { sceneReference = frame; changeSamples = 0; movementReported = false }
+                    still = true
                 }
             }
         }
