@@ -16,11 +16,12 @@ failure behind a generic retrying message.
 ## Delivery policy
 
 - Decode/identity/acknowledgement failures on individual records and permanent
-  HTTP 400/403/413/422 responses move that record into a **Held** directory. Original
+  HTTP 400/403/413/422 responses, or a 401 rules rejection confirmed after an
+  authentication refresh, move that record into a **Held** directory. Original
   bytes and a bounded reason/filename are preserved. No failed payload is deleted.
 - Continue to later roll files. Metrics get an independent attempt even if the
   roll pass encounters a transient network or authentication failure.
-- Keep timeouts, offline errors, HTTP 401/429/5xx and cancellation pending for
+- Keep timeouts, offline errors, unconfirmed/authentication HTTP 401, HTTP 429/5xx and cancellation pending for
   retry. The global authenticated tower-identity check still fails safely before
   sending another owner's data. Per-record owner mismatches are held, never retargeted.
 - If a metrics batch is permanently rejected, bisect it until rejected individual records are identified;
@@ -36,6 +37,11 @@ older history rather than as the latest roll. Held records require inspection or
 a fix before retrying. **Retry held uploads** in the sharing screen restores their
 original bytes/IDs to the pending queue; a still-invalid record is held again.
 This control never rewrites or silently repairs a payload.
+
+RTDB can return HTTP 401 for security-rule validation failures as well as expired
+tokens. The client refreshes authentication once before treating a repeated
+`Permission denied` response as a rejected record. Other authentication failures
+remain retryable. This distinction is covered by regressions and live QA.
 
 ## Upload health
 

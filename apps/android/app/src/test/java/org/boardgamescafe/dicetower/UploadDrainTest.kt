@@ -8,9 +8,16 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 class UploadDrainTest {
+    @Test fun rules401NeedsAuthRefreshButExpiredTokensStayRetryable() {
+        assertFalse(UploadResponsePolicy.isPermanentRejection(401,"Permission denied",false))
+        assertTrue(UploadResponsePolicy.isPermanentRejection(401,"Permission denied",true))
+        assertFalse(UploadResponsePolicy.isPermanentRejection(401,"Auth token is expired",true))
+        assertFalse(UploadResponsePolicy.isPermanentRejection(503,"Unavailable",true))
+    }
     @get:Rule val folder=TemporaryFolder()
     private class Backend: CloudBackend {
         var uid="owner";var failed=false;var lostAck=false
+        var rejectionCode=403
         val rejected=mutableSetOf<String>()
         val calls=mutableListOf<Triple<String,String,Boolean>>()
         val events=mutableMapOf<String,JSONObject>()
@@ -18,7 +25,7 @@ class UploadDrainTest {
         override suspend fun call(path: String,method: String,body: JSONObject?,createOnly: Boolean): Reply {
             calls.add(Triple(path,method,createOnly))
             if(failed)throw CloudFailure(0)
-            if((createOnly && path.substringAfterLast('/') in rejected) || (method=="PATCH" && body!=null && body.keys().asSequence().any { it in rejected }))throw CloudFailure(403)
+            if((createOnly && path.substringAfterLast('/') in rejected) || (method=="PATCH" && body!=null && body.keys().asSequence().any { it in rejected }))throw CloudFailure(rejectionCode,rejected=rejectionCode==401)
             if(createOnly) {
                 val old=events[path];if(old!=null)return Reply(412,old)
                 events[path]=body!!
@@ -81,6 +88,13 @@ class UploadDrainTest {
         UploadDrain(backend,outbox).flush("owner"){true}
         assertEquals(0,outbox.count());assertEquals(1,outbox.heldCount());assertTrue(outbox.heldIssue().contains("403"))
         assertEquals(5,backend.calls.size)
+    }
+    @Test fun refreshedPermissionDenied401DoesNotBlockFollowingRolls()=runBlocking {
+        val outbox=DiskOutbox(folder.newFolder());val backend=Backend();backend.rejectionCode=401;backend.rejected.add("bad")
+        for(id in listOf("0-first","bad","z-last"))outbox.put("rolls","owner",id,JSONObject().put("eventId",id))
+        UploadDrain(backend,outbox).flush("owner"){true}
+        assertEquals(setOf("rolls/owner/0-first","rolls/owner/z-last"),backend.events.keys)
+        assertEquals(1,outbox.heldCount());assertTrue(outbox.heldIssue().contains("401"))
     }
     @Test fun transientRollFailureDoesNotPreventMetricsAttempt()=runBlocking {
         val outbox=DiskOutbox(folder.newFolder());val backend=Backend();backend.failed=true

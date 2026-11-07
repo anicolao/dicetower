@@ -217,7 +217,7 @@ actor FirebaseTowerClient {
         identity = value
         return value
     }
-    private func database(_ path: String, method: String = "GET", body: Data? = nil, createOnly: Bool = false) async throws -> (Data, Int) {
+    private func database(_ path: String, method: String = "GET", body: Data? = nil, createOnly: Bool = false, refreshed: Bool = false) async throws -> (Data, Int) {
         let identity = try await authenticated()
         var url = URLComponents(string: config.databaseURL + "/" + path + ".json")!
         url.queryItems = [URLQueryItem(name: "auth", value: identity.idToken)]
@@ -226,7 +226,17 @@ actor FirebaseTowerClient {
         if createOnly { request.setValue("null_etag", forHTTPHeaderField: "if-match") }
         let (data, response) = try await session.data(for: request)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-        if code == 401 { self.identity?.expires = .distantPast }
+        if code == 401 {
+            // RTDB uses 401 for rules rejection too. Refresh once, then distinguish
+            // rejected saved data from authentication/network recovery.
+            if !refreshed {
+                self.identity?.expires = .distantPast
+                return try await database(path, method: method, body: body, createOnly: createOnly, refreshed: true)
+            }
+            let message = ((try? JSONSerialization.jsonObject(with: data)) as? [String: Any])?["error"] as? String ?? ""
+            if UploadResponsePolicy.isPermanentRejection(status: code, message: message, authenticationRefreshed: true) { throw CloudError.rejected(code) }
+            self.identity?.expires = .distantPast
+        }
         guard (200...299).contains(code) || (createOnly && code == 412) else { throw CloudError.database(code) }
         return (data, code)
     }
@@ -299,7 +309,8 @@ actor FirebaseTowerClient {
            [.fileReadCorruptFile, .fileReadNoPermission, .fileReadTooLarge].contains(error.code) { return true }
         if let error = error as? CloudError {
             switch error {
-            case .database(let code): return [400,403,413,422].contains(code)
+            case .database(let code): return UploadResponsePolicy.isPermanentRejection(status: code, message: "", authenticationRefreshed: false)
+            case .rejected: return true
             case .queuedIdentity, .acknowledgement: return true
             default: return false
             }
@@ -378,7 +389,7 @@ actor FirebaseTowerClient {
         if let rollError { throw rollError }
     }
     private enum CloudError: LocalizedError {
-        case configuration, authentication, keychain, identity, queuedIdentity, acknowledgement, database(Int)
+        case configuration, authentication, keychain, identity, queuedIdentity, acknowledgement, database(Int), rejected(Int)
         var errorDescription: String? {
             switch self {
             case .configuration: return "Firebase configuration is missing."
@@ -388,6 +399,7 @@ actor FirebaseTowerClient {
             case .queuedIdentity: return "Saved upload belongs to another tower; original data retained."
             case .acknowledgement: return "Server record did not acknowledge this event; original data retained."
             case .database(let status): return "Firebase request failed (\(status))."
+            case .rejected(let status): return "Firebase rejected saved data (\(status))."
             }
         }
     }

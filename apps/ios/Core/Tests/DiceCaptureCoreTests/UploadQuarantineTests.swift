@@ -2,6 +2,13 @@ import XCTest
 @testable import DiceCaptureCore
 
 final class UploadQuarantineTests: XCTestCase {
+    func testRules401IsPermanentOnlyAfterAuthRefreshAndExpiredTokensStayRetryable() {
+        XCTAssertFalse(UploadResponsePolicy.isPermanentRejection(status: 401, message: "Permission denied", authenticationRefreshed: false))
+        XCTAssertTrue(UploadResponsePolicy.isPermanentRejection(status: 401, message: "Permission denied", authenticationRefreshed: true))
+        XCTAssertFalse(UploadResponsePolicy.isPermanentRejection(status: 401, message: "Auth token is expired", authenticationRefreshed: true))
+        XCTAssertFalse(UploadResponsePolicy.isPermanentRejection(status: 503, message: "Unavailable", authenticationRefreshed: true))
+        XCTAssertTrue(UploadResponsePolicy.isPermanentRejection(status: 403, message: "Permission denied", authenticationRefreshed: false))
+    }
     enum Failure: Error, Equatable { case rejected, offline }
     struct Payload: Codable { let id: String }
     actor Sender {

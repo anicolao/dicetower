@@ -22,7 +22,7 @@ interface CloudBackend {
     suspend fun call(path: String,method: String="GET",body: JSONObject?=null,createOnly: Boolean=false): Reply
 }
 data class Reply(val code: Int,val body: JSONObject?)
-class CloudFailure(val code: Int): Exception("Firebase request failed ($code)")
+class CloudFailure(val code: Int,val rejected: Boolean=false): Exception("Firebase request ${if(rejected)"rejected saved data" else "failed"} ($code)")
 
 class FirebaseBackend(context: Context): CloudBackend {
     private val config=JSONObject(context.assets.open("firebase-config.json").bufferedReader().use { it.readText() })
@@ -33,7 +33,10 @@ class FirebaseBackend(context: Context): CloudBackend {
     private suspend fun user()=auth.currentUser?:auth.signInAnonymously().await().user?:throw CloudFailure(401)
     override suspend fun owner()=user().uid
     override suspend fun call(path: String,method: String,body: JSONObject?,createOnly: Boolean): Reply {
-        val token=user().getIdToken(false).await().token?:throw CloudFailure(401)
+        return request(path,method,body,createOnly,false)
+    }
+    private suspend fun request(path: String,method: String,body: JSONObject?,createOnly: Boolean,refreshed: Boolean): Reply {
+        val token=user().getIdToken(refreshed).await().token?:throw CloudFailure(401)
         return withContext(Dispatchers.IO) {
             val url=URI(config.getString("databaseURL")+"/"+path+".json?auth="+URLEncoder.encode(token,"UTF-8")).toURL()
             val connection=url.openConnection() as HttpURLConnection
@@ -44,7 +47,9 @@ class FirebaseBackend(context: Context): CloudBackend {
                 if(body!=null){connection.doOutput=true;connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }}
                 val code=connection.responseCode
                 val data=(if(code in 200..299)connection.inputStream else connection.errorStream)?.bufferedReader()?.use { it.readText() }?:"null"
-                if(code !in 200..299 && !(createOnly && code==412))throw CloudFailure(code)
+                if(code==401 && !refreshed){connection.disconnect();return@withContext request(path,method,body,createOnly,true)}
+                val rejected=code==401 && runCatching { UploadResponsePolicy.isPermanentRejection(code,JSONObject(data).optString("error"),refreshed) }.getOrDefault(false)
+                if(code !in 200..299 && !(createOnly && code==412))throw CloudFailure(code,rejected)
                 Reply(code,if(data.trim().startsWith("{"))JSONObject(data) else null)
             } catch(error: CloudFailure){throw error}
             catch(error: Exception){throw CloudFailure(0)}
@@ -91,7 +96,7 @@ class DiskOutbox(private val root: File) {
 
 /** Transport policy is independent of Android and tested against lost ACKs/identity changes. */
 class UploadDrain(private val backend: CloudBackend,private val outbox: DiskOutbox) {
-    private fun permanent(error: Exception)=error !is CancellationException && (error is org.json.JSONException || error is java.io.IOException || error is IllegalStateException || (error is CloudFailure && error.code in listOf(400,403,413,422)))
+    private fun permanent(error: Exception)=error !is CancellationException && (error is org.json.JSONException || error is java.io.IOException || error is IllegalStateException || (error is CloudFailure && (error.rejected || UploadResponsePolicy.isPermanentRejection(error.code,"",false))))
     private fun hold(file: File,kind: String,error: Exception){outbox.hold(file,kind,"${if(kind=="rolls")"Roll" else "Metric"} ${file.nameWithoutExtension.take(8)}: ${error.message?:error.javaClass.simpleName}")}
     private suspend fun flushRolls(owner: String,enabled: ()->Boolean) {
         for(file in outbox.files("rolls")) {
