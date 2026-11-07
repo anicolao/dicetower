@@ -96,6 +96,10 @@ function renderMetrics() {
   $('metric-duplicates').textContent=latest?.duplicateCount==null?'—':String(latest.duplicateCount);
   $('upload-summary').textContent=latest?.uploadHeldCount==null?'This build has not reported upload health.':latest.uploadHeldCount>0?`${latest.uploadHeldCount} uploads held on the phone · ${latest.uploadIssue} · Other uploads continue.`:'No uploads held on the phone.';
   $('upload-summary').classList.toggle('upload-warning',(latest?.uploadHeldCount??0)>0);
+  const delivery=metricSamples.find(m=>m.deliveryState);
+  const deliveryText=m=>`${m.deliveryState==='queueFailed'?'Could not queue':m.deliveryState} · ${m.deliveryValues||'empty tray'} · ${clock.format(m.deliveryAt)} · ${m.deliveryEventId.slice(-8)} · ${m.deliveryDetail}`;
+  $('delivery-summary').textContent=delivery?`Latest roll delivery: ${deliveryText(delivery)}`:'This build has not reported roll delivery status.';
+  $('delivery-summary').classList.toggle('upload-warning',['rejected','queueFailed'].includes(delivery?.deliveryState));
   const duplicate=metricSamples.find(m=>m.sessionId===latest?.sessionId && m.duplicateDiscarded);
   $('duplicate-summary').textContent=latest?.duplicateCount==null?'This build has not reported duplicate metrics.':`${duplicate?`Latest visible discard: ${clock.format(duplicate.recordedAt)} · matches event ${duplicate.duplicateOfEventId.slice(-6)}.`:'No discard decisions in the recent sample window.'} Duplicate attempts stay out of the roll feed.`;
   $('metrics-samples').replaceChildren();
@@ -120,6 +124,7 @@ function renderMetrics() {
       cell.append(link);
     }else cell.textContent='—';
     row.append(cell);
+    row.append(text('td',sample.deliveryState?deliveryText(sample):'—'));
     $('metrics-samples').append(row);
   }
 }

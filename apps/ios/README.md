@@ -1,5 +1,7 @@
 # DiceTower Capture for iPhone
 
+Version 0.4.5 normalizes finite confidence to [0,1], automatically recovers the known tiny confidence overflow in held rolls with original IDs, and shows queued/delivered/rejected status with dice values. Rejected or unsaved events cease to suppress future readings; offline pending events still prevent duplicates. Original repaired payloads are retained under Recovered. See [delivery recovery](../../docs/UPLOAD_RECOVERY.md).
+
 Version 0.4.4 fixes upload queue blocking. Invalid records are preserved as held uploads while later rolls and metrics continue. The sharing screen and observer show upload health; see [upload recovery](../../docs/UPLOAD_RECOVERY.md). Recognition/arming are unchanged.
 
 Version 0.4.3 restores the original sensitive detection/arming sequence. After

@@ -17,6 +17,7 @@ class TowerViewModel(application: Application): AndroidViewModel(application) {
     val engine=RecognitionEngine(application,{ cloud.enqueue("rolls",it) },{ cloud.enqueue("metrics",it) })
     @Volatile private var foreground=false
     init {
+        cloud.onDeliveryFailure = { engine.deliveryFailed(it) }
         engine.setRegion(_region.value)
         viewModelScope.launch { while(true){delay(15000);if(foreground)cloud.retry()} }
     }

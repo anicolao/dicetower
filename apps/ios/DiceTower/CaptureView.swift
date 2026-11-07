@@ -63,6 +63,7 @@ struct CaptureView: View {
                             Image(systemName: "chevron.right").font(.caption)
                         }
                     }.accessibilityIdentifier("tower-sharing")
+                    Text(cloud.deliveryStatus).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("roll-delivery")
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Circle().fill(camera.automatic ? mint : Color.secondary).frame(width: 8, height: 8)

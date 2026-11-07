@@ -53,12 +53,15 @@ import XCTest
         let recognition = app.staticTexts["recognition-status"]
         expectation(for: NSPredicate(format: "label BEGINSWITH %@", "Quiescent"), evaluatedWith: recognition)
         waitForExpectations(timeout: 40)
+        XCTAssertTrue(app.staticTexts["roll-delivery"].exists)
         attach(app, "07-firebase-sharing")
         let next = app.buttons["next-arrangement"]
         if !next.isHittable { app.swipeUp() }; next.tap()
         let delivery = expectation(description: "Deliver the new motion episode")
         DispatchQueue.main.asyncAfter(deadline: .now() + 20) { delivery.fulfill() }
         waitForExpectations(timeout: 25)
+        expectation(for: NSPredicate(format: "label BEGINSWITH %@", "Delivered"), evaluatedWith: app.staticTexts["roll-delivery"])
+        waitForExpectations(timeout: 20)
     }
 
     func testBundledModelProducesASettledReading() throws {

@@ -19,4 +19,10 @@ public struct ReportedRollFilter: Sendable {
         return eventID
     }
     public mutating func record(_ faces: [RollFace], eventID: String) { previous = faces; self.eventID = eventID }
+    /// A pending baseline prevents offline duplicates. Rejection invalidates only
+    /// that event; a late failure must not clear a newer scene's baseline.
+    @discardableResult public mutating func failed(eventID: String) -> Bool {
+        guard self.eventID == eventID else { return false }
+        previous = nil; self.eventID = ""; return true
+    }
 }

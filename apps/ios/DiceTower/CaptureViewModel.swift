@@ -36,6 +36,7 @@ struct ShareArtifact: Identifiable { let id = UUID(); let url: URL }
         camera.recognizer.onMetrics = { [weak self] metrics in
             Task { @MainActor [weak self] in await self?.cloud.receiveMetrics(metrics) }
         }
+        cloud.onDeliveryFailure = { [weak self] id in self?.camera.recognizer.deliveryFailed(eventID: id) }
         applySettings()
     }
 

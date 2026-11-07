@@ -10,7 +10,7 @@ const ios=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const repo=path.resolve(ios,'../..');
 const developer=process.env.DICETOWER_XCODE_DEVELOPER_DIR||'/Applications/Xcode.app/Contents/Developer';
 const c=configuration();
-const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.4';
+const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.5';
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 async function command(program,args,log) {
@@ -95,7 +95,7 @@ async function main() {
   const testerID=await assignTester(group.id);
   const testers=await request('GET',`/v1/betaGroups/${group.id}/betaTesters?limit=200`);
   if(!testers.data.some(t=>t.id===testerID))throw new Error('Apple did not confirm internal tester membership.');
-  const notes='Fix upload queue blocking: unreadable or server-rejected records are preserved in a held queue instead of preventing later rolls and all metrics from uploading. Valid records continue, including historical pending rolls behind a failing record. A rejected metrics batch is split to isolate bad samples while sending healthy groups efficiently. Temporary network/auth errors remain pending for retry. The sharing screen shows held upload count, record prefix and error, with a Retry held uploads control. Upload health is also reported in the metrics stream and PR web preview. Recognition, arming, model and duplicate detection are unchanged.';
+  const notes='Fix rejected dice rolls caused by confidence slightly exceeding 1. Confidence is normalized before sharing; the known tiny overflow in previously held rolls is repaired automatically, retaining original event IDs/timestamps and archiving original payloads. Pending rolls prevent offline duplicates, but rejected or unsaved events no longer suppress future readings. The capture screen and observer metrics distinguish queued, delivered, rejected and could-not-queue states, with dice values, event ID and transition time. Settlement, motion sensitivity, two-inference agreement and model weights are unchanged.';
   const localizations=await request('GET',`/v1/builds/${build.id}/betaBuildLocalizations`);
   if(!localizations.data.length)await request('POST','/v1/betaBuildLocalizations',{data:{type:'betaBuildLocalizations',attributes:{locale:'en-CA',whatsNew:notes},relationships:{build:{data:{type:'builds',id:build.id}}}}});
   const detail=await request('GET',`/v1/builds/${build.id}/buildBetaDetail`);

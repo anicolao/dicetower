@@ -90,3 +90,16 @@ check('upload health is bounded, owner-only and immutable, while legacy metrics 
  await assertFails(set(ref(db('observer'),'metrics/owner/m2'),{...warning,metricId:'m2'}));
  await assertFails(set(ref(db('owner'),'metrics/owner/m2'),{...metric('m2'),uploadHeldCount:1}));
 });
+
+check('delivery diagnostics are bounded owner-only immutable metrics; confidence overflow stays rejected',async()=>{
+ await set(ref(db('owner'),'towers/owner'),profile);
+ const status={...metric(),eventId:'',deliveryEventId:'e1',deliveryState:'rejected',deliveryValues:'1,3,4,3',deliveryDetail:'Invalid dice[2].confidence',deliveryAt:Date.now()};
+ await assertSucceeds(set(ref(db('owner'),'metrics/owner/m1'),status));
+ await assertSucceeds(set(ref(db('owner'),'metrics/owner/m1'),status));
+ await assertFails(update(ref(db('owner'),'metrics/owner/m1'),{deliveryState:'delivered'}));
+ for(const extra of [{deliveryState:'unknown'},{deliveryValues:'7'},{deliveryEventId:''},{deliveryDetail:'x'.repeat(201)}])await assertFails(set(ref(db('owner'),'metrics/owner/m2'),{...status,metricId:'m2',...extra}));
+ await assertFails(set(ref(db('observer'),'metrics/owner/m2'),{...status,metricId:'m2'}));
+ const overflow=event();overflow.dice[0].confidence=1.0000001192092896;
+ await assertFails(set(ref(db('owner'),'rolls/owner/e1'),overflow));
+ overflow.dice[0].confidence=1;await assertSucceeds(set(ref(db('owner'),'rolls/owner/e1'),overflow));
+});

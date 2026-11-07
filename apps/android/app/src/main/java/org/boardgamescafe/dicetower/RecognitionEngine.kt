@@ -75,6 +75,7 @@ class RecognitionEngine(context: Context,private val onRoll: (JSONObject)->Unit,
         }
         sample?.let(onMetric)
     }
+    fun deliveryFailed(id: String) { synchronized(guard){reportedFilter.failed(id)} }
     fun needsImage()=synchronized(guard){phase=="active"}
     fun submit(bitmap: Bitmap,time: Double) {
         synchronized(guard) {
@@ -120,7 +121,7 @@ class RecognitionEngine(context: Context,private val onRoll: (JSONObject)->Unit,
                 check(bytes.size<74000) { "Thumbnail too large" }
                 val dice=JSONArray()
                 analysis.faces.forEach { f -> dice.put(JSONObject().apply {
-                    put("value",f.value);put("confidence",f.confidence);put("box",JSONObject().apply { put("x",f.box.x);put("y",f.box.y);put("width",f.box.width);put("height",f.box.height) })
+                    put("value",f.value);put("confidence",f.confidence.coerceIn(0.0,1.0));put("box",JSONObject().apply { put("x",f.box.x);put("y",f.box.y);put("width",f.box.width);put("height",f.box.height) })
                 }) }
                 event=JSONObject().apply {
                     put("schemaVersion",1);put("eventId",UUID.randomUUID().toString());put("rollId",rollId);put("kind","roll")

@@ -14,7 +14,7 @@ struct CloudRoll: Codable, Sendable {
     let kind: String
     let capturedAt: Double
     var modelSHA256 = "416678e1d7e4e7f7b867e1513fce072744a49c6feca3cdfb90b12417be8091b9"
-    let dice: [RollFace]
+    var dice: [RollFace]
     let count: Int
     let total: Int
     let thumbnail: String
@@ -30,6 +30,9 @@ struct CloudRoll: Codable, Sendable {
     @Published private(set) var uploadIssue = ""
     @Published private(set) var status = "Roll sharing is off"
     @Published private(set) var busy = false
+    @Published private(set) var deliveryStatus = "No roll sent this session"
+    var onDeliveryFailure: ((String) -> Void)?
+    private var delivery: (id: String, state: String, values: String, detail: String, at: Double)?
     @Published var showSetup = false
     private let client: FirebaseTowerClient?
     private var worker: Task<Void, Never>?
@@ -57,6 +60,9 @@ struct CloudRoll: Codable, Sendable {
         if !UserDefaults.standard.bool(forKey: "cloudTowerOnboarded") { showSetup = true }
         guard worker == nil else { return }
         worker = Task { [weak self] in
+            await self?.client?.setDeliveryHandler { [weak self] id, state, values, detail in
+                await self?.recordDelivery(id: id, state: state, values: values, detail: detail)
+            }
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.flush()
@@ -88,14 +94,40 @@ struct CloudRoll: Codable, Sendable {
     }
     func receive(_ roll: CloudRoll) async {
         guard sharing, let profile, let client else { return }
-        guard roll.count <= 30, roll.thumbnail.utf8.count <= 100000 else { status = "Reading too large to share · try again"; return }
-        do { try await client.enqueue(roll, towerID: profile.id); await flush() }
-        catch { status = "Roll could not be queued: \(error.localizedDescription)" }
+        do {
+            var roll = roll
+            roll.dice = try RollUploadValidation.faces(roll.dice)
+            guard roll.count == roll.dice.count, roll.total == roll.dice.reduce(0, { $0 + $1.value }),
+                  roll.thumbnail.utf8.count <= 100000 else { throw CloudLocalError.invalid }
+            try await client.enqueue(roll, towerID: profile.id)
+            await recordDelivery(id: roll.eventId, state: "queued", values: roll.dice.map { String($0.value) }.joined(separator: ","), detail: "Saved on phone; awaiting server acknowledgement")
+            await flush()
+        } catch {
+            await recordDelivery(id: roll.eventId, state: "queueFailed", values: roll.dice.map { String($0.value) }.joined(separator: ","), detail: error.localizedDescription)
+            status = "Roll could not be queued: \(error.localizedDescription)"
+        }
     }
+    private enum CloudLocalError: LocalizedError { case invalid; var errorDescription: String? { "Invalid roll count, total or thumbnail" } }
+    private func recordDelivery(id: String, state: String, values: String, detail: String) async {
+        let detail = String(decoding: detail.utf16.prefix(180), as: UTF16.self)
+        delivery = (id, state, values, detail, Date().timeIntervalSince1970 * 1000)
+        deliveryStatus = "\(state == "delivered" ? "Delivered" : state == "queued" ? "Queued" : state == "queueFailed" ? "Could not queue" : "Rejected") · \(values.isEmpty ? "empty tray" : values) · \(id.prefix(8)) · \(detail)"
+        if state == "rejected" || state == "queueFailed" { onDeliveryFailure?(id) }
+        if var sample = latestMetric {
+            sample.metricId = UUID().uuidString; sample.recordedAt = Date().timeIntervalSince1970 * 1000
+            sample.eventId = ""; sample.duplicateDiscarded = false; sample.duplicateOfEventId = ""
+            await receiveMetrics(sample)
+        }
+    }
+
     func receiveMetrics(_ sample: RecognitionMetrics) async {
         guard sharing, let profile, let client else { return }
         var sample = sample
         sample.uploadHeldCount = heldUploads; sample.uploadIssue = uploadIssue
+        if let delivery {
+            sample.deliveryEventId = delivery.id; sample.deliveryState = delivery.state
+            sample.deliveryValues = delivery.values; sample.deliveryDetail = delivery.detail; sample.deliveryAt = delivery.at
+        }
         latestMetric = sample
         do { try await client.enqueueMetric(sample, towerID: profile.id); await flush() }
         catch { status = "Metrics could not be queued: \(error.localizedDescription)" }
@@ -162,6 +194,11 @@ actor FirebaseTowerClient {
     private let session: URLSession
     private var lastHeartbeat = Date.distantPast
     private var publishing = true
+    private var deliveryHandler: (@Sendable (String, String, String, String) async -> Void)?
+    func setDeliveryHandler(_ handler: @escaping @Sendable (String, String, String, String) async -> Void) { deliveryHandler = handler }
+    private func notify(_ roll: CloudRoll, state: String, detail: String) async {
+        await deliveryHandler?(roll.eventId, state, roll.dice.map { String($0.value) }.joined(separator: ","), detail)
+    }
     func pause() { publishing = false }
     private static let keychainService = "org.boardgamescafe.dicetower.firebase"
 
@@ -304,7 +341,7 @@ actor FirebaseTowerClient {
     func retryHeld() throws { try quarantine.retry { kind in kind == "rolls" ? directory : directory.appendingPathComponent("metrics") } }
     private func uploadEnabled() -> Bool { publishing }
     nonisolated private static func permanent(_ error: Error) -> Bool {
-        if error is DecodingError { return true }
+        if error is DecodingError || error is RollUploadValidation.Invalid { return true }
         if let error = error as? CocoaError,
            [.fileReadCorruptFile, .fileReadNoPermission, .fileReadTooLarge].contains(error.code) { return true }
         if let error = error as? CloudError {
@@ -317,14 +354,18 @@ actor FirebaseTowerClient {
         }
         return false
     }
-    private func hold(_ file: URL, kind: String, error: Error) throws {
+    private func hold(_ file: URL, kind: String, error: Error) async throws {
+        let roll = kind == "rolls" ? (try? JSONDecoder().decode(Pending.self, from: Data(contentsOf: file)))?.roll : nil
         let reason = "\(kind == "rolls" ? "Roll" : "Metric") \(file.deletingPathExtension().lastPathComponent.prefix(8)): \(error.localizedDescription)"
         try quarantine.hold(file, kind: kind, reason: String(decoding: reason.utf16.prefix(180), as: UTF16.self))
+        if let roll { await notify(roll, state: "rejected", detail: error.localizedDescription) }
     }
     private func sendRoll(_ file: URL, towerID: String) async throws {
         let pending = try JSONDecoder().decode(Pending.self, from: Data(contentsOf: file))
         guard pending.towerID == towerID else { throw CloudError.queuedIdentity }
-        var payload = try JSONSerialization.jsonObject(with: JSONEncoder().encode(pending.roll)) as! [String: Any]
+        var roll = pending.roll
+        roll.dice = try RollUploadValidation.faces(roll.dice)
+        var payload = try JSONSerialization.jsonObject(with: JSONEncoder().encode(roll)) as! [String: Any]
         payload["receivedAt"] = [".sv": "timestamp"]
         let (data, code) = try await database("rolls/\(towerID)/\(pending.roll.eventId)", method: "PUT", body: JSONSerialization.data(withJSONObject: payload), createOnly: true)
         if code == 412 {
@@ -332,6 +373,7 @@ actor FirebaseTowerClient {
             guard existing?["eventId"] as? String == pending.roll.eventId else { throw CloudError.acknowledgement }
         }
         try FileManager.default.removeItem(at: file)
+        await notify(roll, state: "delivered", detail: "Server acknowledged this event")
     }
     private func flushMetrics(towerID: String) async throws {
         var records: [(URL, PendingMetric)] = []
@@ -343,7 +385,7 @@ actor FirebaseTowerClient {
                 records.append((file, pending))
             } catch {
                 guard Self.permanent(error) else { throw error }
-                try hold(file, kind: "metrics", error: error)
+                try await hold(file, kind: "metrics", error: error)
             }
         }
         guard publishing, !records.isEmpty else { return }
@@ -358,7 +400,7 @@ actor FirebaseTowerClient {
         } catch {
             guard Self.permanent(error) else { throw error }
             if records.count == 1 {
-                try hold(records[0].0, kind: "metrics", error: error)
+                try await hold(records[0].0, kind: "metrics", error: error)
             } else {
                 // Bisect rejected atomic batches: acknowledge healthy halves in
                 // bulk instead of delaying live rolls behind 100 single writes.
@@ -370,6 +412,30 @@ actor FirebaseTowerClient {
         }
         for (file, _) in records { try FileManager.default.removeItem(at: file) }
     }
+    /// Repair only the diagnosed tiny confidence overflow. Archive original bytes
+    /// before restoring the same event ID; other held records remain untouched.
+    private func recoverConfidenceOvershoots(towerID: String) async throws {
+        let held = directory.appendingPathComponent("Held/rolls")
+        let folders = (try? FileManager.default.contentsOfDirectory(at: held, includingPropertiesForKeys: nil)) ?? []
+        for folder in folders {
+            let file = folder.appendingPathComponent("payload.json")
+            guard let data = try? Data(contentsOf: file), var pending = try? JSONDecoder().decode(Pending.self, from: data),
+                  pending.towerID == towerID, folder.lastPathComponent == pending.roll.eventId + ".json",
+                  RollUploadValidation.hasRecoverableOvershoot(pending.roll.dice),
+                  let faces = try? RollUploadValidation.faces(pending.roll.dice) else { continue }
+            var roll = pending.roll; roll.dice = faces
+            pending = Pending(towerID: towerID, roll: roll)
+            let target = directory.appendingPathComponent(roll.eventId + ".json")
+            // Never overwrite another pending payload.
+            if FileManager.default.fileExists(atPath: target.path) { continue }
+            let archive = directory.appendingPathComponent("Recovered/rolls/" + folder.lastPathComponent)
+            try FileManager.default.createDirectory(at: archive.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if !FileManager.default.fileExists(atPath: archive.path) { try FileManager.default.copyItem(at: folder, to: archive) }
+            try JSONEncoder().encode(pending).write(to: target, options: .atomic)
+            try FileManager.default.removeItem(at: folder)
+            await notify(roll, state: "queued", detail: "Recovered confidence overflow; original retained on phone")
+        }
+    }
     func flush(towerID: String) async throws {
         let identity = try await authenticated()
         guard identity.uid == towerID else { throw CloudError.identity }
@@ -377,6 +443,7 @@ actor FirebaseTowerClient {
             _ = try await database("towers/\(towerID)", method: "PATCH", body: JSONSerialization.data(withJSONObject: ["updatedAt": [".sv": "timestamp"], "sharing": true]))
             lastHeartbeat = Date()
         }
+        try await recoverConfidenceOvershoots(towerID: towerID)
         var rollError: Error?
         do {
             try await drainUploadFiles(try pendingFiles(), enabled: { await self.uploadEnabled() },

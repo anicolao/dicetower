@@ -58,6 +58,22 @@ class FirebaseBackend(context: Context): CloudBackend {
     }
 }
 
+/** Normalize finite confidence, but reject invalid geometry with a field-level reason. */
+fun normalizedRoll(original: JSONObject): JSONObject {
+    val roll=JSONObject(original.toString());val dice=roll.optJSONArray("dice")?:org.json.JSONArray()
+    require(roll.getInt("count")==dice.length() && dice.length()<=30) { "Invalid roll count" }
+    var total=0
+    for(i in 0 until dice.length()) {
+        val face=dice.getJSONObject(i);val value=face.getInt("value");require(value in 1..6){"Invalid dice[$i].value"};total+=value
+        val confidence=face.getDouble("confidence");require(confidence.isFinite()){"Invalid dice[$i].confidence (non-finite)"}
+        face.put("confidence",confidence.coerceIn(0.0,1.0))
+        val b=face.getJSONObject("box");val x=b.getDouble("x");val y=b.getDouble("y");val w=b.getDouble("width");val h=b.getDouble("height")
+        require(listOf(x,y,w,h).all { it.isFinite() } && x in 0.0..1.0 && y in 0.0..1.0 && w>0 && h>0 && w<=1 && h<=1 && x+w<=1.000001 && y+h<=1.000001){"Invalid dice[$i].box"}
+    }
+    require(roll.getInt("total")==total){"Invalid roll total"}
+    return roll
+}
+
 /** Atomic files precede network writes; no auth token is part of this directory. */
 class DiskOutbox(private val root: File) {
     data class Item(val file: File,val tower: String,val payload: JSONObject)
@@ -91,23 +107,44 @@ class DiskOutbox(private val root: File) {
             check(File(folder,"reason.json").delete());check(folder.delete())
         }
     }
+    fun recoverConfidenceOvershoots(owner: String,onRecovered: (JSONObject)->Unit) {
+        for(folder in held().filter { it.parentFile.name=="rolls" }) {
+            val item=runCatching { read(File(folder,"payload.json")) }.getOrNull()?:continue
+            if(item.tower!=owner)continue
+            val dice=item.payload.optJSONArray("dice")?:continue
+            val scores=(0 until dice.length()).map { dice.getJSONObject(it).getDouble("confidence") }
+            if(!scores.any { it>1 } || !scores.all { it.isFinite() && it in 0.0..1.00001 })continue
+            val repaired=runCatching { normalizedRoll(item.payload) }.getOrNull()?:continue
+            val id=repaired.getString("eventId");if(folder.name!="$id.json" || File(root,"rolls/$id.json").exists())continue
+            val archive=File(root,"Recovered/rolls/${folder.name}")
+            if(!archive.exists())check(folder.copyRecursively(archive,overwrite=false)){"Could not preserve original held record"}
+            put("rolls",owner,id,repaired)
+            check(folder.deleteRecursively()){ "Could not complete recovery" }
+            onRecovered(repaired)
+        }
+    }
     fun count()=listOf("rolls","metrics").sumOf { File(root,it).listFiles()?.count { f->f.extension=="json" }?:0 }
 }
 
 /** Transport policy is independent of Android and tested against lost ACKs/identity changes. */
-class UploadDrain(private val backend: CloudBackend,private val outbox: DiskOutbox) {
-    private fun permanent(error: Exception)=error !is CancellationException && (error is org.json.JSONException || error is java.io.IOException || error is IllegalStateException || (error is CloudFailure && (error.rejected || UploadResponsePolicy.isPermanentRejection(error.code,"",false))))
-    private fun hold(file: File,kind: String,error: Exception){outbox.hold(file,kind,"${if(kind=="rolls")"Roll" else "Metric"} ${file.nameWithoutExtension.take(8)}: ${error.message?:error.javaClass.simpleName}")}
+class UploadDrain(private val backend: CloudBackend,private val outbox: DiskOutbox,private val onDelivery: (JSONObject,String,String)->Unit={ _,_,_ -> }) {
+    private fun permanent(error: Exception)=error !is CancellationException && (error is org.json.JSONException || error is java.io.IOException || error is IllegalStateException || error is IllegalArgumentException || (error is CloudFailure && (error.rejected || UploadResponsePolicy.isPermanentRejection(error.code,"",false))))
+    private fun hold(file: File,kind: String,error: Exception){
+        val roll=if(kind=="rolls")runCatching { outbox.read(file).payload }.getOrNull() else null
+        outbox.hold(file,kind,"${if(kind=="rolls")"Roll" else "Metric"} ${file.nameWithoutExtension.take(8)}: ${error.message?:error.javaClass.simpleName}")
+        if(roll!=null)onDelivery(roll,"rejected",error.message?:error.javaClass.simpleName)
+    }
     private suspend fun flushRolls(owner: String,enabled: ()->Boolean) {
         for(file in outbox.files("rolls")) {
             if(!enabled())return
             try {
                 val item=outbox.read(file)
                 check(item.tower==owner) { "Queued data belongs to another tower" }
-                val wire=JSONObject(item.payload.toString()).put("receivedAt",JSONObject().put(".sv","timestamp"))
+                val wire=normalizedRoll(item.payload).put("receivedAt",JSONObject().put(".sv","timestamp"))
                 val reply=backend.call("rolls/$owner/${item.payload.getString("eventId")}","PUT",wire,true)
                 if(reply.code==412)check(reply.body?.optString("eventId")==item.payload.getString("eventId")) { "Conditional write did not acknowledge this event" }
                 check(item.file.delete()) { "Could not acknowledge saved roll" }
+                onDelivery(item.payload,"delivered","Server acknowledged this event")
             } catch(error: Exception){if(!permanent(error))throw error;hold(file,"rolls",error)}
         }
     }
@@ -139,6 +176,7 @@ class UploadDrain(private val backend: CloudBackend,private val outbox: DiskOutb
     }
     suspend fun flush(owner: String,enabled: ()->Boolean) {
         check(backend.owner()==owner) { "Tower identity changed; queued data was preserved" }
+        outbox.recoverConfidenceOvershoots(owner){onDelivery(it,"queued","Recovered confidence overflow; original retained on phone")}
         var rollError: Exception?=null
         try {flushRolls(owner,enabled)}catch(error: Exception){rollError=error}
         try {flushMetrics(owner,enabled)}catch(error: Exception){throw rollError?:error}
@@ -147,11 +185,13 @@ class UploadDrain(private val backend: CloudBackend,private val outbox: DiskOutb
 
 }
 
-data class CloudUi(val name: String="",val towerId: String="",val sharing: Boolean=false,val queued: Int=0,val status: String="Roll sharing is off",val onboarding: Boolean=true,val busy: Boolean=false,val held: Int=0,val issue: String="")
+data class CloudUi(val name: String="",val towerId: String="",val sharing: Boolean=false,val queued: Int=0,val status: String="Roll sharing is off",val onboarding: Boolean=true,val busy: Boolean=false,val held: Int=0,val issue: String="",val delivery: String="No roll sent this session")
 class CloudPublisher(context: Context,private val scope: CoroutineScope,private val backend: CloudBackend=FirebaseBackend(context)) {
     private val prefs=context.getSharedPreferences("tower",Context.MODE_PRIVATE)
     private val outbox=DiskOutbox(File(context.noBackupFilesDir,"cloud-outbox"))
-    private val drain=UploadDrain(backend,outbox)
+    private val drain=UploadDrain(backend,outbox){ roll,state,detail -> recordDelivery(roll,state,detail) }
+    var onDeliveryFailure: ((String)->Unit)?=null
+    @Volatile private var deliveryFields: JSONObject?=null
     private val wake=Channel<Unit>(Channel.CONFLATED)
     @Volatile private var sharing=prefs.getBoolean("sharing",false)
     private var heartbeat=0L
@@ -175,6 +215,21 @@ class CloudPublisher(context: Context,private val scope: CoroutineScope,private 
                     _ui.value=_ui.value.copy(queued=outbox.count(),held=outbox.heldCount(),issue=outbox.heldIssue(),status=if(sharing)"${outbox.count()} queued, ${outbox.heldCount()} held · ${error.message}" else "Roll sharing is off")
                 }
             }
+        }
+    }
+    private fun recordDelivery(roll: JSONObject,state: String,detail: String) {
+        val id=roll.getString("eventId");val dice=roll.optJSONArray("dice");val values=if(dice==null)"" else (0 until dice.length()).joinToString(","){dice.getJSONObject(it).getInt("value").toString()}
+        val fields=JSONObject().put("deliveryEventId",id).put("deliveryState",state).put("deliveryValues",values).put("deliveryDetail",detail.take(180)).put("deliveryAt",System.currentTimeMillis())
+        deliveryFields=fields
+        _ui.value=_ui.value.copy(delivery="${state.replaceFirstChar { it.uppercase() }} · ${values.ifEmpty { "empty tray" }} · ${id.take(8)} · ${detail.take(180)}")
+        if(state=="rejected" || state=="queueFailed")onDeliveryFailure?.invoke(id)
+        if(sharing)latestMetric?.let { old ->
+            val sample=JSONObject(old.toString()).put("metricId",java.util.UUID.randomUUID().toString()).put("recordedAt",System.currentTimeMillis())
+                .put("eventId","").put("duplicateDiscarded",false).put("duplicateOfEventId","")
+                .put("uploadHeldCount",outbox.heldCount()).put("uploadIssue",outbox.heldIssue())
+            fields.keys().forEach { key -> sample.put(key,fields.get(key)) }
+            runCatching { outbox.put("metrics",_ui.value.towerId,sample.getString("metricId"),sample);wake.trySend(Unit) }
+                .onFailure { _ui.value=_ui.value.copy(status="Could not save delivery diagnostics: ${it.message}") }
         }
     }
     private fun refreshHeld(owner: String) {
@@ -208,11 +263,21 @@ class CloudPublisher(context: Context,private val scope: CoroutineScope,private 
     fun enqueue(kind: String,payload: JSONObject) {
         if(!sharing)return
         val owner=_ui.value.towerId
-        if(kind=="rolls" && payload.optInt("count")>30){_ui.value=_ui.value.copy(status="Reading too large to share");return}
+
         scope.launch(Dispatchers.IO) {
-            try { if(kind=="metrics"){latestMetric=JSONObject(payload.toString());payload.put("uploadHeldCount",outbox.heldCount()).put("uploadIssue",outbox.heldIssue())}
-                outbox.put(kind,owner,payload.getString(if(kind=="rolls")"eventId" else "metricId"),payload);_ui.value=_ui.value.copy(queued=outbox.count());wake.trySend(Unit) }
-            catch(error: Exception){_ui.value=_ui.value.copy(status="Could not save upload queue. Check device storage.")}
+            try {
+                val saved=if(kind=="rolls")normalizedRoll(payload) else JSONObject(payload.toString())
+                if(kind=="metrics") {
+                    latestMetric=JSONObject(saved.toString());saved.put("uploadHeldCount",outbox.heldCount()).put("uploadIssue",outbox.heldIssue())
+                    deliveryFields?.let { fields -> fields.keys().forEach { key -> saved.put(key,fields.get(key)) } }
+                }
+                outbox.put(kind,owner,saved.getString(if(kind=="rolls")"eventId" else "metricId"),saved)
+                if(kind=="rolls")recordDelivery(saved,"queued","Saved on phone; awaiting server acknowledgement")
+                _ui.value=_ui.value.copy(queued=outbox.count());wake.trySend(Unit)
+            } catch(error: Exception){
+                if(kind=="rolls")recordDelivery(payload,"queueFailed",error.message?:"Could not save upload queue")
+                _ui.value=_ui.value.copy(status="Could not save upload queue: ${error.message}")
+            }
         }
     }
     fun retryHeld(){scope.launch(Dispatchers.IO){runCatching { outbox.retryHeld();retry() }.onFailure { _ui.value=_ui.value.copy(status="Could not retry held uploads") }}}

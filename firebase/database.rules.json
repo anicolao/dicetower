@@ -121,7 +121,7 @@
         "$metric": {
           ".read": "auth != null",
           ".write": "auth != null && auth.uid == $tower && root.child('towers').child($tower).exists() && newData.exists()",
-          ".validate": "newData.hasChildren(['schemaVersion', 'metricId', 'sessionId', 'recordedAt', 'phase', 'eventId', 'settleMs', 'agreementCount', 'inferenceCount', 'inferenceMs', 'emaInferenceMs', 'processingMs', 'intervalMs']) && (!newData.hasChild('duplicateDiscarded') || (newData.hasChildren(['duplicateCount', 'duplicateOfEventId']) && (newData.child('duplicateDiscarded').val() != true || (newData.child('duplicateCount').val() > 0 && newData.child('duplicateOfEventId').val().length > 0 && newData.child('eventId').val() == '' && newData.child('phase').val() == 'quiescent' && newData.child('agreementCount').val() == 2)))) && ((!newData.hasChild('duplicateDiscarded') && !newData.hasChild('duplicateCount') && !newData.hasChild('duplicateOfEventId')) || newData.hasChildren(['duplicateDiscarded', 'duplicateCount', 'duplicateOfEventId'])) && (!newData.hasChild('duplicateDiscarded') || newData.child('duplicateDiscarded').val() == true || newData.child('duplicateOfEventId').val() == '') && ((!newData.hasChild('uploadHeldCount') && !newData.hasChild('uploadIssue')) || newData.hasChildren(['uploadHeldCount','uploadIssue']))",
+          ".validate": "newData.hasChildren(['schemaVersion', 'metricId', 'sessionId', 'recordedAt', 'phase', 'eventId', 'settleMs', 'agreementCount', 'inferenceCount', 'inferenceMs', 'emaInferenceMs', 'processingMs', 'intervalMs']) && (!newData.hasChild('duplicateDiscarded') || (newData.hasChildren(['duplicateCount', 'duplicateOfEventId']) && (newData.child('duplicateDiscarded').val() != true || (newData.child('duplicateCount').val() > 0 && newData.child('duplicateOfEventId').val().length > 0 && newData.child('eventId').val() == '' && newData.child('phase').val() == 'quiescent' && newData.child('agreementCount').val() == 2)))) && ((!newData.hasChild('duplicateDiscarded') && !newData.hasChild('duplicateCount') && !newData.hasChild('duplicateOfEventId')) || newData.hasChildren(['duplicateDiscarded', 'duplicateCount', 'duplicateOfEventId'])) && (!newData.hasChild('duplicateDiscarded') || newData.child('duplicateDiscarded').val() == true || newData.child('duplicateOfEventId').val() == '') && ((!newData.hasChild('uploadHeldCount') && !newData.hasChild('uploadIssue')) || newData.hasChildren(['uploadHeldCount','uploadIssue'])) && ((!newData.hasChild('deliveryEventId') && !newData.hasChild('deliveryState') && !newData.hasChild('deliveryValues') && !newData.hasChild('deliveryDetail') && !newData.hasChild('deliveryAt')) || newData.hasChildren(['deliveryEventId','deliveryState','deliveryValues','deliveryDetail','deliveryAt']))",
           "schemaVersion": {
             ".validate": "(newData.val() == 1) && (!data.exists() || newData.val() == data.val())"
           },
@@ -178,6 +178,21 @@
           },
           "uploadIssue": {
             ".validate": "(newData.isString() && newData.val().length <= 200) && (!data.parent().exists() || newData.val() == data.val())"
+          },
+          "deliveryEventId": {
+            ".validate": "(newData.isString() && newData.val().length > 0 && newData.val().length <= 64) && (!data.parent().exists() || newData.val() == data.val())"
+          },
+          "deliveryState": {
+            ".validate": "(newData.val() == 'queued' || newData.val() == 'delivered' || newData.val() == 'rejected' || newData.val() == 'queueFailed') && (!data.parent().exists() || newData.val() == data.val())"
+          },
+          "deliveryValues": {
+            ".validate": "(newData.isString() && newData.val().length <= 100 && newData.val().matches(/^([1-6](,[1-6])*)?$/)) && (!data.parent().exists() || newData.val() == data.val())"
+          },
+          "deliveryDetail": {
+            ".validate": "(newData.isString() && newData.val().length <= 200) && (!data.parent().exists() || newData.val() == data.val())"
+          },
+          "deliveryAt": {
+            ".validate": "(newData.isNumber() && newData.val() > 0 && newData.val() <= now + 300000) && (!data.parent().exists() || newData.val() == data.val())"
           }
         }
       }

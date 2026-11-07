@@ -36,7 +36,7 @@ arrive. Their original capture timestamps are retained, so they may appear in
 older history rather than as the latest roll. Held records require inspection or
 a fix before retrying. **Retry held uploads** in the sharing screen restores their
 original bytes/IDs to the pending queue; a still-invalid record is held again.
-This control never rewrites or silently repairs a payload.
+This manual control never rewrites a payload. Version 0.4.5 / Android 0.1.5 also performs the narrowly scoped automatic confidence recovery described below.
 
 RTDB can return HTTP 401 for security-rule validation failures as well as expired
 tokens. The client refreshes authentication once before treating a repeated
@@ -73,3 +73,42 @@ The explicit Debug-simulator live-QA flag `-upload-poison-demo` seeds two valid
 rolls on either side of an unreadable UUID, an unreadable metric, and a metric
 whose settlement value deliberately violates deployed rules. It is paired with
 `-cloud-demo` and excluded from physical-device/Release builds.
+
+## Confidence overflow recovery and delivery lifecycle (0.4.5 / Android 0.1.5)
+
+The physical-phone investigation confirmed that all four held rolls contained a
+confidence of `1.0000001192092896`, including the missing 1,3,4,3 roll. Firebase
+correctly rejected scores above 1. The clients now bound finite confidence to
+[0,1] at recognition and upload, and reject non-finite confidence or invalid
+geometry locally with a field name. Strict server confidence rules remain intact.
+
+On upgrade, a held roll is eligible for automatic recovery only when it belongs
+to the current tower, has at least one confidence above 1, every confidence is
+finite and between 0 and 1.00001, and its face values/geometry pass validation.
+The app archives the original held directory under `CloudOutbox/Recovered/rolls`
+(Android `cloud-outbox/Recovered/rolls`), atomically writes a normalized pending
+copy with the original event ID/capture timestamp, then removes the active held
+copy. It never overwrites an existing pending record or retargets another owner.
+Other held failures remain held. A successful immutable retry counts as delivery.
+
+A local recognition is separate from saving and server acknowledgement. A pending
+roll is a duplicate baseline while its durable outbox retries offline, avoiding a
+flood of redundant event IDs. A failed enqueue or permanent rejection invalidates
+only its matching baseline. Late failures do not clear a newer baseline. The
+current still scene remains quiet; the next motion/restart can report it again,
+without a loop repeatedly submitting permanently invalid data. No motion threshold,
+settlement duration, agreement requirement, or model weights change.
+
+The capture screens show the latest roll's values, event ID, and delivery state.
+New metrics carry an optional all-or-none group: `deliveryEventId`,
+`deliveryState` (`queued`, `delivered`, `rejected`, `queueFailed`), `deliveryValues`
+(comma-separated values; empty for an empty tray), `deliveryDetail`, `deliveryAt`
+(milliseconds since Unix epoch at the transition). Each transition saves a fresh
+metrics sample, and subsequent timing samples repeat the latest status with its
+original transition timestamp. A metrics `eventId` alone still means emitted by
+the recognizer, **not** acknowledged by Firebase. The observer shows delivery
+status separately and in recent timing rows. Legacy metrics remain readable.
+
+Delivery diagnostics are best-effort telemetry over the same network. Their
+absence is not proof of delivery or rejection. Retained local payloads remain the
+source for inspecting a rejection; credentials are never included in telemetry.

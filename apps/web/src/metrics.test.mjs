@@ -26,3 +26,10 @@ test('upload health distinguishes held records from legacy samples',()=>{
  for(const extra of [{uploadHeldCount:-1},{uploadHeldCount:.5},{uploadIssue:'x'.repeat(201)},{uploadIssue:3}])assert.equal(normalizeMetric('bad',{...status,...extra}),null);
  assert.equal(normalizeMetric('partial',{...metric,uploadHeldCount:2}),null);
 });
+
+test('delivery status distinguishes pending, acknowledged and rejected events with values',()=>{
+ const status={...metric,deliveryEventId:'e1',deliveryState:'rejected',deliveryValues:'1,3,4,3',deliveryDetail:'Invalid dice[2].confidence',deliveryAt:12345};
+ assert.equal(normalizeMetric('new',status).deliveryState,'rejected');
+ for(const extra of [{deliveryState:'unknown'},{deliveryValues:'7'},{deliveryValues:'<script>'},{deliveryEventId:''},{deliveryDetail:'x'.repeat(201)},{deliveryAt:-1}])assert.equal(normalizeMetric('bad',{...status,...extra}),null);
+ assert.equal(normalizeMetric('partial',{...metric,deliveryState:'delivered'}),null);
+});

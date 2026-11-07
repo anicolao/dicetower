@@ -81,6 +81,7 @@ class MainActivity: ComponentActivity() {
             Text(message,style=MaterialTheme.typography.headlineSmall,color=ink)
             Text(cameraError?:state.message,fontSize=12.sp,color=ink)
             MetricsPanel(state.timing)
+            Text(cloud.delivery,fontSize=12.sp,color=ink)
             Box(Modifier.fillMaxWidth().aspectRatio(3f/4f).background(Color.Black)) {
                 if(permission)CameraFeed(model.engine,region,Modifier.fillMaxSize()){cameraError=it.takeIf { message -> message.isNotEmpty() }}
                 else Column(Modifier.align(Alignment.Center).padding(20.dp),horizontalAlignment=Alignment.CenterHorizontally) {

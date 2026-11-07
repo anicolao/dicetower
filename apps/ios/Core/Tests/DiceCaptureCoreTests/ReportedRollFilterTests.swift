@@ -30,4 +30,14 @@ final class ReportedRollFilterTests: XCTestCase {
         filter.record([], eventID: "empty"); XCTAssertEqual(filter.duplicateEventID(for: []), "empty")
         XCTAssertNil(filter.duplicateEventID(for: [face(1)]))
     }
+    func testRejectedPendingBaselineCanReportAgainButLateRejectionCannotClearNewerEvent() {
+        var filter = ReportedRollFilter()
+        filter.record([face(4)], eventID: "pending")
+        XCTAssertEqual(filter.duplicateEventID(for: [face(4)]), "pending")
+        XCTAssertTrue(filter.failed(eventID: "pending"))
+        XCTAssertNil(filter.duplicateEventID(for: [face(4)]))
+        filter.record([face(3)], eventID: "newer")
+        XCTAssertFalse(filter.failed(eventID: "pending"))
+        XCTAssertEqual(filter.duplicateEventID(for: [face(3)]), "newer")
+    }
 }

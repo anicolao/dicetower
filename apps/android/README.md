@@ -1,5 +1,7 @@
 # DiceTower Android prototype
 
+Version 0.1.5 normalizes finite confidence to [0,1], automatically recovers the known tiny confidence overflow in held rolls with original IDs, and shows queued/delivered/rejected status with dice values. Rejected or unsaved events cease to suppress future readings; offline pending events still prevent duplicates. Original repaired payloads are retained under Recovered. See [delivery recovery](../../docs/UPLOAD_RECOVERY.md).
+
 Version 0.1.4 fixes upload queue blocking and adds held-upload recovery and diagnostics. See [the recovery policy](../../docs/UPLOAD_RECOVERY.md). Recognition/arming are unchanged.
 
 Version 0.1.3 restores the original sensitive detection/arming sequence and filters

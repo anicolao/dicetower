@@ -122,7 +122,7 @@ object DetectorMath {
         for(p in proposals.sortedByDescending { it.score }) {
             if(kept.none { iou(Box(p.cx-p.w/2,p.cy-p.h/2,p.w,p.h),Box(it.cx-it.w/2,it.cy-it.h/2,it.w,it.h))>.30 })kept.add(p)
         }
-        return kept.mapNotNull { p -> geometry.cameraBox(p.cx,p.cy,p.w,p.h)?.let { Face(p.value,p.score,it) } }.sortedBy { it.box.cx }
+        return kept.mapNotNull { p -> geometry.cameraBox(p.cx,p.cy,p.w,p.h)?.let { Face(p.value,p.score.coerceIn(0.0,1.0),it) } }.sortedBy { it.box.cx }
     }
     fun iou(a: Box,b: Box): Double {
         val area=max(0.0,min(a.x+a.width,b.x+b.width)-max(a.x,b.x))*max(0.0,min(a.y+a.height,b.y+b.height)-max(a.y,b.y))
@@ -196,6 +196,7 @@ class ReportedRollFilter {
         }
         return eventId
     }
+    fun failed(id: String): Boolean { if(eventId!=id)return false;clear();return true }
     fun clear(){previous=null;eventId=""}
     fun record(faces: List<Face>,id: String){previous=faces.toList();eventId=id}
 }

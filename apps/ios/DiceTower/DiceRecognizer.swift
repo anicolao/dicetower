@@ -33,6 +33,11 @@ struct RecognitionMetrics: Codable, Sendable {
     var duplicateOfEventId: String?
     var uploadHeldCount: Int?
     var uploadIssue: String?
+    var deliveryEventId: String?
+    var deliveryState: String?
+    var deliveryValues: String?
+    var deliveryDetail: String?
+    var deliveryAt: Double?
 }
 
 /// Fresh frames only, a single in-flight request, and no ML work while quiescent.
@@ -65,6 +70,13 @@ final class DiceRecognizer: ObservableObject, @unchecked Sendable {
     private var duplicateCount = 0
     var onRoll: ((CloudRoll) -> Void)?
     var onMetrics: ((RecognitionMetrics) -> Void)?
+
+    func deliveryFailed(eventID: String) {
+        lock.lock(); let cleared = reportedFilter.failed(eventID: eventID); lock.unlock()
+        // Keep the current still scene quiet. Its next motion/restart can report
+        // again; do not spin on a permanently invalid payload.
+        if cleared { queue.async { self.eventGate.moved() } }
+    }
 
     // Caller holds lock. Timing uses a monotonic clock; recordedAt is for stream display.
     private func snapshot(eventID: String = "", duplicateOf: String = "") -> RecognitionMetrics {
@@ -141,13 +153,15 @@ final class DiceRecognizer: ObservableObject, @unchecked Sendable {
             let inferenceMs = (ProcessInfo.processInfo.systemUptime - modelStart) * 1000
             let result = (request.results as? [VNRecognizedObjectObservation] ?? []).compactMap { observation -> RecognizedDie? in
                 guard let label = observation.labels.first, let value = Int(label.identifier), (1...6).contains(value) else { return nil }
-                let confidence = observation.confidence * label.confidence
+                let score = observation.confidence * label.confidence
+                guard score.isFinite else { return nil }
+                let confidence = min(1, max(0, score))
                 guard confidence >= 0.75, let box = geometry.cameraBox(fromVision: observation.boundingBox) else { return nil }
                 return RecognizedDie(id: 0, value: value, confidence: confidence, box: box)
             }.sorted { $0.box.midX < $1.box.midX }.enumerated().map { RecognizedDie(id: $0.offset, value: $0.element.value, confidence: $0.element.confidence, box: $0.element.box) }
             let finished = ProcessInfo.processInfo.systemUptime
             let processingMs = (finished - processingStart) * 1000
-            let faces = result.map { RollFace(value: $0.value, confidence: Double($0.confidence), box: $0.box) }
+            let faces = try RollUploadValidation.faces(result.map { RollFace(value: $0.value, confidence: Double($0.confidence), box: $0.box) })
             self.lock.lock()
             let valid = epoch == self.generation
             let report: Bool
