@@ -54,12 +54,25 @@ class RecognitionCoreTest {
     }
     @Test fun sustainedSpatialMovementRearmsOnceAndCanRearmAgainAfterSettlement() {
         val scene=settledScene();var rolls=0
-        for(i in 0..7){val moved=scene.observe(motionFrame(12+(i%5)*12),.25+i*.05);if(i<3)assertFalse(moved);if(moved)rolls++}
+        for(i in 0..7){val moved=scene.observe(motionFrame(12+(i%5)*12),.25+i*.05);if(i==0)assertFalse(moved);if(moved)rolls++}
         assertEquals(1,rolls)
         for(i in 0..5)assertFalse(scene.observe(motionFrame(),.65+i*.05))
         assertTrue(scene.still)
         for(i in 0..5)if(scene.observe(motionFrame(12+i*12),1.0+i*.05))rolls++
         assertEquals(2,rolls)
+    }
+    @Test fun fastRollAlreadyStoppedAtSecondObservationStillRearms() {
+        val scene=settledScene()
+        assertFalse(scene.observe(motionFrame(24),.25))
+        assertTrue(scene.observe(motionFrame(24),.30))
+        for(i in 7..30)assertFalse(scene.observe(motionFrame(24),i*.05))
+        assertTrue(scene.still)
+    }
+    @Test fun quietFrameDuringRollDoesNotEraseChangedSceneEvidence() {
+        val scene=settledScene()
+        assertFalse(scene.observe(motionFrame(12),.25))
+        assertTrue(scene.observe(motionFrame(12),.30))
+        assertFalse(scene.observe(motionFrame(36),.35))
     }
     @Test fun cameraGapBreaksConsecutiveMovementEvidence() {
         val scene=settledScene()

@@ -133,15 +133,18 @@ change, an explicit sharing setup, or camera restart rearms it. Empty detections
 can agree too; they remain an experimental zero-dice observation. New builds do
 not continuously revise a motionless, already-reported scene.
 
-In iOS 0.4.1 / Android 0.1.1, rearming requires at least 150 ms of consecutive
-spatial motion observations. The motion score removes a uniform luminance offset;
-raw image differences still govern the 200 ms settlement window. A single noisy
-frame, slow exposure drift, or a camera-frame gap can invalidate an in-progress
-reading but cannot create a new roll or wake an already-reported scene. Gaps
-break accumulated motion evidence. A genuine observed movement episode can report
-the same values again. A roll entirely hidden by a camera gap cannot be verified;
-returning to the app or explicitly restarting recognition still starts a fresh
-observation. Photo capture retains its separate stillness/invalidation policy.
+In iOS 0.4.2 / Android 0.1.2, rearming requires two camera observations different
+from the previous settled scene (usually 50 ms apart). The earlier 150 ms
+continuous frame-to-frame motion requirement missed quick rolls and has been
+removed. Dice can move and already be stationary at the second observation.
+Uniform luminance offsets are removed from the rearm score; raw differences still
+govern the 200 ms settlement window. One disturbed frame returning to the old scene
+clears the candidate. Frame gaps reset candidate evidence and do not alone rearm;
+a changed scene afterward must pass the same two-observation check. A genuine
+movement episode can report the same values again. An unobserved roll returning
+to the identical scene cannot be distinguished from no roll; returning to the app
+or explicitly restarting recognition starts a fresh observation. Photo capture
+retains its separate stillness/invalidation policy.
 
 Each completed Vision request is timed using monotonic system uptime. Its EMA is
 initialized from the first measurement and updated as `0.2 * last + 0.8 * EMA`.

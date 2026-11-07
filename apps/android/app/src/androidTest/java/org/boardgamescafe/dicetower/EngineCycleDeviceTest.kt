@@ -42,8 +42,9 @@ class EngineCycleDeviceTest {
             assertEquals(count,engine.ui.value.timing.inferenceCount);assertEquals(1,reports.size)
             delay(50)
             engine.observeMotion(ByteArray(96*128){30},monotonicSeconds())
-            repeat(8){i ->
-                val moving=ByteArray(96*128){30}.also { p -> for(y in 24..35)for(x in 12+(i%5)*12 until 24+(i%5)*12)p[y*96+x]=220.toByte() }
+            repeat(2){
+                // A quick change followed by an already-stopped scene must rearm.
+                val moving=ByteArray(96*128){30}.also { p -> for(y in 24..35)for(x in 24..35)p[y*96+x]=220.toByte() }
                 val time=monotonicSeconds();engine.observeMotion(moving,time);engine.submit(bitmap,time);delay(50)
             }
             feedUntilReport(30,2)

@@ -57,30 +57,32 @@ class SceneMonitor(private val threshold: Double = .012) {
     private var since = 0.0
     private var last = Double.NEGATIVE_INFINITY
     private var samples = 0
-    private var movementSince: Double? = null
+    private var sceneReference: ByteArray? = null
+    private var changeSamples = 0
     private var movementReported = false
-    fun reset() { still=false; invalidated=false; previous=null; anchor=null; last=Double.NEGATIVE_INFINITY; samples=0; movementSince=null; movementReported=false }
-    /** True only after 150ms of consecutive spatial motion; gaps/drift never arm rolls. */
+    fun reset() { still=false; invalidated=false; previous=null; anchor=null; last=Double.NEGATIVE_INFINITY; samples=0; sceneReference=null; changeSamples=0; movementReported=false }
+    /** Two observations different from the settled scene; no continuous-motion floor. */
     fun observe(frame: ByteArray, time: Double): Boolean {
         require(frame.size==96*128)
         val wasStill=still
-        if(!time.isFinite()){still=false;invalidated=true;movementSince=null;return false}
+        if(!time.isFinite()){still=false;invalidated=true;changeSamples=0;return false}
         val prior=previous
         val gap=last.isFinite() && (time<=last || time-last>.6)
         var rearm=false
         if(prior==null || gap) {
-            still=false;since=time;anchor=frame;samples=1;movementSince=null
-        } else if(difference(frame,prior,true)>threshold) {
-            if(movementSince==null)movementSince=time
-            if(time-movementSince!!+1e-9>=.15 && !movementReported){rearm=true;movementReported=true}
-            still=false;anchor=null;samples=0
+            still=false;since=time;anchor=frame;samples=1;changeSamples=0
         } else {
-            movementSince=null
-            if(anchor==null || difference(frame,prior)>threshold || difference(frame,anchor!!)>threshold) {
+            if(difference(frame,sceneReference?:prior,true)>threshold) {
+                changeSamples++
+                if(changeSamples>=2 && !movementReported){rearm=true;movementReported=true}
+            } else changeSamples=0
+            if(difference(frame,prior,true)>threshold) {
+                still=false;anchor=null;samples=0
+            } else if(anchor==null || difference(frame,prior)>threshold || difference(frame,anchor!!)>threshold) {
                 still=false;since=time;anchor=frame;samples=1
             } else {
                 samples++
-                if(time-since+1e-9>=.2 && samples>=3){still=true;movementReported=false}
+                if(time-since+1e-9>=.2 && samples>=3){if(!still){sceneReference=frame;changeSamples=0};still=true;movementReported=false}
             }
         }
         invalidated=gap || (wasStill && !still)

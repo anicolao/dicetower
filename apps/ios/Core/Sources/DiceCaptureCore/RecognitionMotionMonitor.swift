@@ -13,7 +13,8 @@ public struct RecognitionMotionMonitor: Sendable {
     private var anchor: AnalysisFrame?
     private var last: Double?
     private var quietSince: Double?
-    private var movementSince: Double?
+    private var sceneReference: AnalysisFrame?
+    private var changeSamples = 0
     private var quietSamples = 0
     private var movementReported = false
     private var still = false
@@ -27,32 +28,33 @@ public struct RecognitionMotionMonitor: Sendable {
     public mutating func observe(_ frame: AnalysisFrame, at time: Double) -> RecognitionMotionObservation {
         let wasStill = still
         guard frame.isValid, time.isFinite else {
-            still = false; movementSince = nil
+            still = false; changeSamples = 0
             return .init(still: false, invalidated: true, newRoll: false)
         }
         defer { previous = frame; last = time }
         let gap = last.map { time <= $0 || time - $0 > parameters.maximumFrameGap } ?? false
         guard let previous, previous.width == frame.width, previous.height == frame.height, !gap else {
-            still = false; anchor = frame; quietSince = time; quietSamples = 1; movementSince = nil
+            still = false; anchor = frame; quietSince = time; quietSamples = 1; changeSamples = 0
             return .init(still: false, invalidated: wasStill || gap, newRoll: false)
         }
         var newRoll = false
-        // Only consecutive spatial changes confirm motion. A static anchor can drift
-        // with illumination; a frame gap says nothing about whether dice were rolled.
+        // Compare with the settled scene, not only adjacent frames: a quick roll
+        // may already have stopped by the second observation. One transient frame
+        // returning to the old scene clears the candidate instead of rearming.
+        if frame.spatialDifference(from: sceneReference ?? previous) > parameters.motionThreshold {
+            changeSamples += 1
+            if changeSamples >= 2 && !movementReported { newRoll = true; movementReported = true }
+        } else { changeSamples = 0 }
         if frame.spatialDifference(from: previous) > parameters.motionThreshold {
-            if movementSince == nil { movementSince = time }
-            if time - (movementSince ?? time) + 1e-9 >= parameters.minimumMotionDuration && !movementReported {
-                newRoll = true; movementReported = true
-            }
             still = false; anchor = nil; quietSince = nil; quietSamples = 0
         } else {
-            movementSince = nil
             if quietSince == nil || frame.difference(from: previous) > parameters.motionThreshold ||
                 (anchor.map { frame.difference(from: $0) } ?? 0) > parameters.motionThreshold {
                 still = false; anchor = frame; quietSince = time; quietSamples = 1
             } else {
                 quietSamples += 1
                 if time - (quietSince ?? time) + 1e-9 >= 0.2 && quietSamples >= 3 {
+                    if !still { sceneReference = frame; changeSamples = 0 }
                     still = true; movementReported = false
                 }
             }

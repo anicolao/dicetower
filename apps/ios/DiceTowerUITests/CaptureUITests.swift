@@ -3,7 +3,7 @@ import XCTest
 @MainActor final class CaptureUITests: XCTestCase {
     func testNoiseAndFrameGapStayIdleButRealMovementRearms() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-capture-demo", "-recognition-noise-demo"]
+        app.launchArguments = ["-capture-demo", "-recognition-noise-demo", "-recognition-fast-roll-demo"]
         app.launch()
         let status = app.staticTexts["recognition-status"]
         expectation(for: NSPredicate(format: "label BEGINSWITH %@", "Quiescent"), evaluatedWith: status)
