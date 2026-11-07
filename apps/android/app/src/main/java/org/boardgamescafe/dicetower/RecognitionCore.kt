@@ -51,31 +51,50 @@ class RecognitionCycle {
 
 class SceneMonitor(private val threshold: Double = .012) {
     var still = false; private set
+    var invalidated = false; private set
     private var previous: ByteArray? = null
     private var anchor: ByteArray? = null
     private var since = 0.0
     private var last = Double.NEGATIVE_INFINITY
     private var samples = 0
-    fun reset() { still=false; previous=null; anchor=null; last=Double.NEGATIVE_INFINITY; samples=0 }
-    /** True means invalidate the current recognition cycle after motion/gap. */
+    private var movementSince: Double? = null
+    private var movementReported = false
+    fun reset() { still=false; invalidated=false; previous=null; anchor=null; last=Double.NEGATIVE_INFINITY; samples=0; movementSince=null; movementReported=false }
+    /** True only after 150ms of consecutive spatial motion; gaps/drift never arm rolls. */
     fun observe(frame: ByteArray, time: Double): Boolean {
         require(frame.size==96*128)
+        val wasStill=still
+        if(!time.isFinite()){still=false;invalidated=true;movementSince=null;return false}
         val prior=previous
         val gap=last.isFinite() && (time<=last || time-last>.6)
-        val moved=prior!=null && (difference(frame,prior) > threshold || difference(frame,anchor?:prior)>threshold)
-        val rearm=gap || (still && moved)
-        if(prior==null || gap || moved) { still=false; since=time; anchor=frame; samples=1 }
-        else { samples++; if(time-since>=.2 && samples>=3)still=true }
+        var rearm=false
+        if(prior==null || gap) {
+            still=false;since=time;anchor=frame;samples=1;movementSince=null
+        } else if(difference(frame,prior,true)>threshold) {
+            if(movementSince==null)movementSince=time
+            if(time-movementSince!!+1e-9>=.15 && !movementReported){rearm=true;movementReported=true}
+            still=false;anchor=null;samples=0
+        } else {
+            movementSince=null
+            if(anchor==null || difference(frame,prior)>threshold || difference(frame,anchor!!)>threshold) {
+                still=false;since=time;anchor=frame;samples=1
+            } else {
+                samples++
+                if(time-since+1e-9>=.2 && samples>=3){still=true;movementReported=false}
+            }
+        }
+        invalidated=gap || (wasStill && !still)
         previous=frame; last=time
         return rearm
     }
     companion object {
-        fun difference(a: ByteArray,b: ByteArray): Double {
+        fun difference(a: ByteArray,b: ByteArray,removeBrightness: Boolean=false): Double {
+            val offset=if(removeBrightness)a.indices.sumOf { (a[it].toInt() and 255)-(b[it].toInt() and 255) }.toDouble()/a.size else 0.0
             var sum=0.0;var localMax=0.0
             for(y in 0 until 128 step 12)for(x in 0 until 96 step 12) {
                 var local=0.0;var count=0
                 for(yy in y until min(y+12,128))for(xx in x until min(x+12,96)) {
-                    local+=abs((a[yy*96+xx].toInt() and 255)-(b[yy*96+xx].toInt() and 255));count++
+                    local+=abs((a[yy*96+xx].toInt() and 255)-(b[yy*96+xx].toInt() and 255)-offset);count++
                 }
                 sum+=local;localMax=max(localMax,local/count/255)
             }

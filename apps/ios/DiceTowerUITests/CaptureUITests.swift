@@ -1,6 +1,28 @@
 import XCTest
 
 @MainActor final class CaptureUITests: XCTestCase {
+    func testNoiseAndFrameGapStayIdleButRealMovementRearms() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-capture-demo", "-recognition-noise-demo"]
+        app.launch()
+        let status = app.staticTexts["recognition-status"]
+        expectation(for: NSPredicate(format: "label BEGINSWITH %@", "Quiescent"), evaluatedWith: status)
+        waitForExpectations(timeout: 60)
+        let metrics = app.descendants(matching: .any)["recognition-metrics"]
+        let frozen = metrics.value as? String ?? ""
+        XCTAssertTrue(frozen.contains("quiescent"))
+        let unchanged = expectation(for: NSPredicate(format: "value != %@", frozen), evaluatedWith: metrics)
+        unchanged.isInverted = true
+        waitForExpectations(timeout: 7)
+        let next = app.buttons["next-arrangement"]
+        if !next.isHittable { app.swipeUp() }
+        next.tap()
+        expectation(for: NSPredicate(format: "value != %@", frozen), evaluatedWith: metrics)
+        waitForExpectations(timeout: 15)
+        expectation(for: NSPredicate(format: "label BEGINSWITH %@", "Quiescent"), evaluatedWith: status)
+        waitForExpectations(timeout: 20)
+    }
+
     func testTowerSetupCanKeepCapturesLocal() throws {
         let app = XCUIApplication(); app.launchArguments = ["-capture-demo"]; app.launch()
         let sharing = app.buttons["tower-sharing"]

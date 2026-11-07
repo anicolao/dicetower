@@ -1,5 +1,13 @@
 # DiceTower Android prototype
 
+Version 0.1.1 fixes repeated reports of stationary dice: at least 150 ms of
+consecutive spatial motion is required to rearm a published scene. Uniform
+brightness offsets are removed from the rearm score; isolated disturbances,
+slow exposure drift and frame gaps cannot create a roll. Raw differences still
+govern settlement, and gaps reset movement evidence. Movement first invalidates
+an in-progress reading; confirmed movement can produce a new roll with the same
+values. A physical roll hidden entirely by a frame gap cannot be verified.
+
 Native Kotlin/Compose, CameraX and on-device ONNX Runtime CPU recognition. Android 10+ (API 29), ARM64 phones, rear camera, portrait orientation. Mount the phone above the black-felt tray with the tray visible; adjust the four crop margins so recognition covers the tray. The preview overlays predictions and displays count, total, inference time, processing time, inference EMA, interval and agreement count. Dice count is inferred automatically.
 
 Name the tower and enable sharing to use the existing [web observer](https://anicolao.github.io/dicetower/), or choose **Keep local**. Recognition works offline. The screen must stay open for capture; backgrounding pauses the camera. Full-resolution corpus capture, photo review and ZIP export remain iOS-only for this first Android version. Readings are experimental and require visual verification. This is a sideloaded debug APK, not a Play Store release.
@@ -37,7 +45,7 @@ Exported ONNX SHA-256: `284e178c7c4ad50526ad8ce535bd55c91b0e70ea76aa80cb00e95a12
 
 Runtime verifies model lineage and ONNX checksum. Firebase events identify the actual ONNX artifact; its hash differs from the source Core ML file. See [MODEL_REPORT.json](MODEL_REPORT.json) for measured conversion parity and an emulator benchmark. Export checks PyTorch/ONNX raw outputs and, on macOS, native Core ML CPU retained detections over all 20 held-out images. It requires identical predicted face multisets, retained score error at most 0.003 and matched retained-box IoU at least 0.99. Low-confidence discarded proposals can differ more and are recorded separately. This establishes conversion parity on those images, not perfect ground-truth accuracy or equivalence on every future image. The existing model's difficult touching/obscured dice remain difficult. Full per-image results stay in `local-models/android/parity.json`.
 
-Luma motion analysis runs at about 20 Hz. Stillness requires 200 ms and at least three samples; local and anchor differences catch small continuing motion. Inference uses the latest available frame with one in-flight request. Inference EMA uses alpha 0.2; target interval is rounded up to a minimum 50 ms, and overruns wait for the next 50 ms boundary. There is no extra fixed reporting delay. Two still-frame results must agree in values and box centers before one event is emitted. The engine then remains quiescent until motion, a frame gap, crop change or lifecycle restart rearms it; a new roll with the same values still gets a new roll ID. Empty-tray agreement can report zero dice, matching the current iOS policy.
+Luma motion analysis runs at about 20 Hz. Stillness requires 200 ms and at least three samples; local and anchor differences catch small continuing motion. Inference uses the latest available frame with one in-flight request. Inference EMA uses alpha 0.2; target interval is rounded up to a minimum 50 ms, and overruns wait for the next 50 ms boundary. There is no extra fixed reporting delay. Two still-frame results must agree in values and box centers before one event is emitted. The engine then remains quiescent until confirmed movement, crop change or lifecycle restart rearms it; a new roll with the same values still gets a new roll ID. Empty-tray agreement can report zero dice, matching the current iOS policy.
 
 `inferenceMs` measures the ONNX call; `processingMs` includes preprocessing, inference and decoding, excluding thumbnail encoding, disk and upload. Model initialization is outside the inference timer. The UI and Firebase metrics stream show these values alongside EMA, interval, agreement, inference count and phase. Phone camera/exposure, processing and network time can add latency beyond the model call. Physical-device speed, thermal behavior and real-tray camera alignment still need validation.
 

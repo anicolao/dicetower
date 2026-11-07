@@ -33,7 +33,20 @@ class EngineCycleDeviceTest {
             val count=engine.ui.value.timing.inferenceCount;val sampleCount=samples.size
             repeat(10){val time=monotonicSeconds();engine.observeMotion(ByteArray(96*128){30},time);engine.submit(bitmap,time);delay(50)}
             assertEquals(count,engine.ui.value.timing.inferenceCount);assertEquals(sampleCount,samples.size);assertEquals(1,reports.size)
-            feedUntilReport(220.toByte(),2)
+            // A transient spatial spike, exposure flicker, and a camera gap must
+            // leave the published scene idle, with no new inference or event.
+            val spike=ByteArray(96*128){30}.also { p -> for(y in 24..35)for(x in 12..23)p[y*96+x]=220.toByte() }
+            engine.observeMotion(spike,monotonicSeconds());delay(50)
+            repeat(10){i -> engine.observeMotion(ByteArray(96*128){if(i%2==0)40 else 90},monotonicSeconds());delay(50)}
+            engine.observeMotion(ByteArray(96*128){30},monotonicSeconds()+2)
+            assertEquals(count,engine.ui.value.timing.inferenceCount);assertEquals(1,reports.size)
+            delay(50)
+            engine.observeMotion(ByteArray(96*128){30},monotonicSeconds())
+            repeat(8){i ->
+                val moving=ByteArray(96*128){30}.also { p -> for(y in 24..35)for(x in 12+(i%5)*12 until 24+(i%5)*12)p[y*96+x]=220.toByte() }
+                val time=monotonicSeconds();engine.observeMotion(moving,time);engine.submit(bitmap,time);delay(50)
+            }
+            feedUntilReport(30,2)
             assertNotEquals(reports[0].getString("rollId"),reports[1].getString("rollId"))
             assertEquals(20,reports[0].getInt("total"));assertEquals(20,reports[1].getInt("total"))
             assertTrue(engine.ui.value.timing.inferenceCount>count)
