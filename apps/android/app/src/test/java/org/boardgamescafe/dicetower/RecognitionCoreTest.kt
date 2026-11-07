@@ -42,8 +42,8 @@ class RecognitionCoreTest {
         val moved=quiet.copyOf();for(y in 12..19)for(x in 12..19)moved[y*96+x]=220.toByte()
         assertTrue(SceneMonitor.difference(moved,quiet)>.012)
     }
-    private fun motionFrame(patch: Int?=null,value: Byte=30)=ByteArray(96*128){value}.also { pixels ->
-        if(patch!=null)for(y in 24 until 36)for(x in patch until patch+12)pixels[y*96+x]=220.toByte()
+    private fun motionFrame(patch: Int?=null,value: Byte=30,patchValue: Byte=220.toByte())=ByteArray(96*128){value}.also { pixels ->
+        if(patch!=null)for(y in 24 until 36)for(x in patch until patch+12)pixels[y*96+x]=patchValue
     }
     private fun settledScene()=SceneMonitor().also { scene -> for(i in 0..4)scene.observe(motionFrame(),i*.05) }
     @Test fun isolatedSpikesAndBrightnessDriftNeverAccumulateIntoANewRoll() {
@@ -73,6 +73,14 @@ class RecognitionCoreTest {
         assertFalse(scene.observe(motionFrame(12),.25))
         assertTrue(scene.observe(motionFrame(12),.30))
         assertFalse(scene.observe(motionFrame(36),.35))
+    }
+    @Test fun referenceAndSettlingAnchorDifferenceCannotRepeatedlyRearm() {
+        val scene=SceneMonitor()
+        for(i in 0..4)scene.observe(motionFrame(12,patchValue=(30+minOf(i,3)).toByte()),i*.05)
+        assertFalse(scene.observe(motionFrame(12,patchValue=26),.25))
+        assertFalse(scene.observe(motionFrame(12,patchValue=23),.30))
+        assertTrue(scene.observe(motionFrame(12,patchValue=23),.35))
+        for(i in 8..40)assertFalse(scene.observe(motionFrame(12,patchValue=23),i*.05))
     }
     @Test fun cameraGapBreaksConsecutiveMovementEvidence() {
         val scene=settledScene()
