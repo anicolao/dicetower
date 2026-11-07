@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#102f30"><meta name="description" content="Watch your DiceTower: live physical dice rolls, camera snapshots and on-device predictions."><title>DiceTower · Live rolls</title><link rel="icon" type="image/svg+xml" href="/dicetower/assets/favicon-CxRhc1AJ.svg">  <script type="module" crossorigin src="/dicetower/assets/index-CgnFATmW.js"></script>
+  <link rel="stylesheet" crossorigin href="/dicetower/assets/index-D8bN7hoy.css">
+</head>
+<body><div id="app">
+<header class="masthead"><a class="brand" href="./"><span class="brand-icon" aria-hidden="true">⚄</span><span>DiceTower<small>PHYSICAL DICE. LIVE RESULTS.</small></span></a><span id="connection" role="status" class="connection">Connecting…</span></header>
+<div class="workspace"><aside class="sidebar"><div class="section-heading"><h2>Your view of the table</h2><span id="tower-count" class="count">0</span></div><p class="muted">Choose a tower to watch its rolls.</p><label class="search"><span aria-hidden="true">⌕</span><input id="tower-search" type="search" placeholder="Find a tower" aria-label="Find a tower"></label><nav id="tower-list" aria-label="DiceTowers"><p class="muted">Connecting to towers…</p></nav><div class="sidebar-note"><span class="mini-die" aria-hidden="true">⚂</span><strong>One tab, one tower.</strong><p>Open another tower in a new tab to follow a second table.</p><p>To add yours, name it and start sharing in the DiceTower iPhone app.</p></div></aside>
+<main><div class="stream-heading"><div><p class="eyebrow">THE ROLL FEED</p><h1 id="tower-title">A seat at every table.</h1><p id="tower-description" class="muted">Your physical dice, one roll at a time.</p></div><a id="open-tab" class="button secondary" target="_blank" rel="noopener" hidden>Open in new tab ↗</a></div>
+<div id="error" role="alert" hidden></div>
+<section class="stats" aria-label="Latest recognition"><div><span>LATEST DICE</span><strong id="latest-dice">—</strong></div><div><span>LATEST TOTAL</span><strong id="latest-total">—</strong></div><div><span>LAST ROLL</span><strong id="latest-time" class="time-stat">—</strong></div></section>
+<div class="feed-heading"><h2>Rolls & recognitions</h2><span id="feed-count" class="muted">Select a tower</span></div><p class="prediction-note">On-device predictions · check the highlighted faces. A recognition update revises a reading from the same roll.</p>
+<div id="empty" class="empty"><div class="empty-tray" aria-hidden="true"><span>⚄</span><span>⚂</span></div><h2 id="empty-title">Find your DiceTower</h2><p id="empty-description">Pick a named tower on the left. Its snapshots and dice results will appear here as they arrive.</p></div>
+<section id="roll-feed" class="roll-feed" aria-label="Roll event stream"></section><button id="load-older" class="button older" hidden>Load older rolls</button>
+<footer>DiceTower <span>Captured on iPhone. Recognized on device.</span><a href="https://github.com/anicolao/dicetower" target="_blank" rel="noopener">Project ↗</a></footer>
+</main></div></div><dialog id="snapshot-dialog"><button id="close-snapshot" class="button" autofocus>Close snapshot</button><div id="snapshot-content"></div></dialog></body></html>
