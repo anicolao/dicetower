@@ -1,0 +1,476 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		08A78C34AB049CFE67C12085 /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 452EF5EF6C52CF6F761F500B /* CaptureView.swift */; };
+		1E8408AC39E1DE41B378FD70 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0A35A49CEA0C69A00F2B7B7F /* PrivacyInfo.xcprivacy */; };
+		24C5B74C0339BFB5E3C470BB /* CameraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BE1667E25F6470FDDB73980 /* CameraService.swift */; };
+		2DFF0628CBECB9331AE03D9B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0FCB81A5447C4A1E36C6ABEA /* Assets.xcassets */; };
+		7D1DCBBCE5AE40600B06FB63 /* CaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0AD65DE126F9FDB3D49D8D2 /* CaptureUITests.swift */; };
+		913259457FF633DD4D9D55A4 /* CaptureViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FD25E015C1E38592C40E2C1 /* CaptureViewModel.swift */; };
+		ABC315E0CE8BC077216610E5 /* DiceTowerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F718DA8D57100AA5B23E02F /* DiceTowerApp.swift */; };
+		EA476BCCDBC450177CBA738A /* DiceCaptureCore in Frameworks */ = {isa = PBXBuildFile; productRef = B796A4B6BC500FB4ACC4BAFA /* DiceCaptureCore */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		9824D6CBFAF5266B40C11B7E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = EE6F2A0F339D1C588CD83753 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 07EDB943F4CA966E5D684CCC;
+			remoteInfo = DiceTower;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0A35A49CEA0C69A00F2B7B7F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		0FCB81A5447C4A1E36C6ABEA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1CD65BB2643D6201A704C9B7 /* DiceTowerUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DiceTowerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1F718DA8D57100AA5B23E02F /* DiceTowerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiceTowerApp.swift; sourceTree = "<group>"; };
+		3FD25E015C1E38592C40E2C1 /* CaptureViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureViewModel.swift; sourceTree = "<group>"; };
+		452EF5EF6C52CF6F761F500B /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
+		45AB32AEB68ABEA3A9E6C084 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		5C7E7D78785C34DB17CBF241 /* Core */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Core; path = Core; sourceTree = SOURCE_ROOT; };
+		65B7A6B3015C2686FDBC4F25 /* DiceTower.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DiceTower.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7BE1667E25F6470FDDB73980 /* CameraService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraService.swift; sourceTree = "<group>"; };
+		C0AD65DE126F9FDB3D49D8D2 /* CaptureUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureUITests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		1D2B76FEF52EFEA9607207A0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EA476BCCDBC450177CBA738A /* DiceCaptureCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		18B74C3A0B255EE700329102 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				65B7A6B3015C2686FDBC4F25 /* DiceTower.app */,
+				1CD65BB2643D6201A704C9B7 /* DiceTowerUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		8DFFBD6B71F72D993724601B /* DiceTowerUITests */ = {
+			isa = PBXGroup;
+			children = (
+				C0AD65DE126F9FDB3D49D8D2 /* CaptureUITests.swift */,
+			);
+			path = DiceTowerUITests;
+			sourceTree = "<group>";
+		};
+		C66DAA8BC73376B92EDD3FA1 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				5C7E7D78785C34DB17CBF241 /* Core */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		E28D3E1EA37AED13F0355B53 /* DiceTower */ = {
+			isa = PBXGroup;
+			children = (
+				0FCB81A5447C4A1E36C6ABEA /* Assets.xcassets */,
+				7BE1667E25F6470FDDB73980 /* CameraService.swift */,
+				452EF5EF6C52CF6F761F500B /* CaptureView.swift */,
+				3FD25E015C1E38592C40E2C1 /* CaptureViewModel.swift */,
+				1F718DA8D57100AA5B23E02F /* DiceTowerApp.swift */,
+				45AB32AEB68ABEA3A9E6C084 /* Info.plist */,
+				0A35A49CEA0C69A00F2B7B7F /* PrivacyInfo.xcprivacy */,
+			);
+			path = DiceTower;
+			sourceTree = "<group>";
+		};
+		F52EBAD746D3A530C8610F5A = {
+			isa = PBXGroup;
+			children = (
+				E28D3E1EA37AED13F0355B53 /* DiceTower */,
+				8DFFBD6B71F72D993724601B /* DiceTowerUITests */,
+				C66DAA8BC73376B92EDD3FA1 /* Packages */,
+				18B74C3A0B255EE700329102 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		07EDB943F4CA966E5D684CCC /* DiceTower */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 919E55E888D10CF6D0228AFF /* Build configuration list for PBXNativeTarget "DiceTower" */;
+			buildPhases = (
+				562809AB04AAABC36C5B3504 /* Sources */,
+				D1CC1EF2879DF5D6AE260300 /* Resources */,
+				1D2B76FEF52EFEA9607207A0 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DiceTower;
+			packageProductDependencies = (
+				B796A4B6BC500FB4ACC4BAFA /* DiceCaptureCore */,
+			);
+			productName = DiceTower;
+			productReference = 65B7A6B3015C2686FDBC4F25 /* DiceTower.app */;
+			productType = "com.apple.product-type.application";
+		};
+		9A9ACCE196159AEA7EA8FC0C /* DiceTowerUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0BAA6CE8794B479EE96FDF91 /* Build configuration list for PBXNativeTarget "DiceTowerUITests" */;
+			buildPhases = (
+				2F986182BDBF4994AF127E54 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BEEF719FEF6ECD3133CD826C /* PBXTargetDependency */,
+			);
+			name = DiceTowerUITests;
+			packageProductDependencies = (
+			);
+			productName = DiceTowerUITests;
+			productReference = 1CD65BB2643D6201A704C9B7 /* DiceTowerUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		EE6F2A0F339D1C588CD83753 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					07EDB943F4CA966E5D684CCC = {
+						ProvisioningStyle = Automatic;
+					};
+					9A9ACCE196159AEA7EA8FC0C = {
+						ProvisioningStyle = Automatic;
+						TestTargetID = 07EDB943F4CA966E5D684CCC;
+					};
+				};
+			};
+			buildConfigurationList = F5625BDF2256096F80923B71 /* Build configuration list for PBXProject "DiceTower" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = F52EBAD746D3A530C8610F5A;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				76EAB4F4ECB0F14CEF8B762C /* XCLocalSwiftPackageReference "Core" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 18B74C3A0B255EE700329102 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				07EDB943F4CA966E5D684CCC /* DiceTower */,
+				9A9ACCE196159AEA7EA8FC0C /* DiceTowerUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D1CC1EF2879DF5D6AE260300 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2DFF0628CBECB9331AE03D9B /* Assets.xcassets in Resources */,
+				1E8408AC39E1DE41B378FD70 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2F986182BDBF4994AF127E54 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7D1DCBBCE5AE40600B06FB63 /* CaptureUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		562809AB04AAABC36C5B3504 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				24C5B74C0339BFB5E3C470BB /* CameraService.swift in Sources */,
+				08A78C34AB049CFE67C12085 /* CaptureView.swift in Sources */,
+				913259457FF633DD4D9D55A4 /* CaptureViewModel.swift in Sources */,
+				ABC315E0CE8BC077216610E5 /* DiceTowerApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		BEEF719FEF6ECD3133CD826C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 07EDB943F4CA966E5D684CCC /* DiceTower */;
+			targetProxy = 9824D6CBFAF5266B40C11B7E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		05C91142A1384F4BD8857A65 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.10;
+			};
+			name = Release;
+		};
+		22EFB88AD2C8F06350F56B45 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DiceTower/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.boardgamescafe.dicetower;
+				PRODUCT_NAME = DiceTower;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		45142B6224E49397C8D06A91 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = DiceTower/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.boardgamescafe.dicetower;
+				PRODUCT_NAME = DiceTower;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		AE994E690E8CD28779960D21 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.boardgamescafe.dicetower.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = DiceTower;
+			};
+			name = Release;
+		};
+		BDDEE33D2047EB1F591C99B0 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.boardgamescafe.dicetower.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = DiceTower;
+			};
+			name = Debug;
+		};
+		CF432DFE47778177FDCCAED8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_VERSION = 5.10;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0BAA6CE8794B479EE96FDF91 /* Build configuration list for PBXNativeTarget "DiceTowerUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BDDEE33D2047EB1F591C99B0 /* Debug */,
+				AE994E690E8CD28779960D21 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		919E55E888D10CF6D0228AFF /* Build configuration list for PBXNativeTarget "DiceTower" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				45142B6224E49397C8D06A91 /* Debug */,
+				22EFB88AD2C8F06350F56B45 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F5625BDF2256096F80923B71 /* Build configuration list for PBXProject "DiceTower" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CF432DFE47778177FDCCAED8 /* Debug */,
+				05C91142A1384F4BD8857A65 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		76EAB4F4ECB0F14CEF8B762C /* XCLocalSwiftPackageReference "Core" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Core;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B796A4B6BC500FB4ACC4BAFA /* DiceCaptureCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DiceCaptureCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = EE6F2A0F339D1C588CD83753 /* Project object */;
+}

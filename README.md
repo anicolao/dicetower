@@ -2,7 +2,7 @@
 
 DiceTower will turn physical dice rolls into results that digital games can use. A native iOS app will watch a dice tray through an overhead iPhone camera and recognize dice with on-device machine learning.
 
-**Status: design proposal.** This repository currently contains documentation and a license only. There is no app, training pipeline, or validated model yet.
+**Status: capture prototype.** A native iOS app now collects photographs automatically when the camera scene settles. See [the iPhone capture guide](apps/ios/README.md) for use, export format, tests, and TestFlight release. Dice recognition remains experimental; the capture app saves unlabeled data for the next training round.
 
 ## Prototype
 
@@ -22,9 +22,9 @@ The proposed starting point is the local `../dicecam/MyObjectDetector.mlproj` Cr
 
 ## Development approach
 
-Review the design before implementation. The first implementation milestone will inventory and validate the existing data, evaluate the historical detector on fresh tray captures, and train a reproducible six-class Create ML baseline. Subsequent milestones will build the SwiftUI/AVFoundation/Vision/Core ML app and validate complete roll sessions on the mounted phone.
+The current app provides native camera preview, scene-stillness detection, automatic/manual photographs, session notes, review, and ZIP export. It infers no face values and does not constrain captures to a preset dice count. The initial model experiments showed poor generalization to newer images; collecting data on the actual rig is the next step. Local training artifacts remain outside Git.
 
-The proposed deployment floor is iOS 18, with an iPhone 13 as the initial performance reference, subject to checking the actual available phone before implementation. Development will require a Mac with Xcode and Create ML plus a physical iPhone for camera and performance testing. There are no build or run commands yet.
+The capture app supports iOS 17 and later. Development uses a Mac with Xcode; camera behavior needs a physical iPhone. Recognition and the remaining game-facing roll workflow are specified in the design documents. Build and release commands are in [apps/ios/README.md](apps/ios/README.md).
 
 ## License and provenance
 

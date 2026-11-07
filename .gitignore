@@ -1,0 +1,12 @@
+.DS_Store
+apps/ios/.tools/
+apps/ios/DerivedData/
+apps/ios/build/
+**/.build/
+**/xcuserdata/
+**/*.xcuserstate
+.env
+*.p8
+local-models/
+dicecam-local-test-corpus-2026-11-06.zip
+CORPUS_NOTES.md
