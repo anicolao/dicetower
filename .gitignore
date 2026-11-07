@@ -21,3 +21,12 @@ apps/web/dist/
 local-tools/
 .firebase/
 *-debug.log
+.gradle-home/
+apps/android/.gradle/
+apps/android/**/build/
+apps/android/local.properties
+apps/android/app/src/main/assets/DiceTowerD6.onnx
+apps/android/app/src/main/assets/model-info.json
+apps/android/app/src/androidTest/assets/golden.png
+apps/android/app/src/androidTest/assets/golden.json
+tools/android-model/.venv/
