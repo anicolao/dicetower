@@ -1,5 +1,24 @@
 # Local golden-master review
 
+## Frozen test results
+
+```sh
+python3 tools/corpus-review/results.py --port 8767
+```
+
+Open **http://127.0.0.1:8767** to inspect the frozen test failures (default), all
+ten test photos, or passing cases. Compare the fine-tuned and unchanged models;
+toggle approved truth and model overlays, enlarge the image, and inspect each
+face's full-resolution crop, expected/predicted values, confidence, and overlap.
+Extra detections and missed faces are listed separately. Below-cutoff detections
+are available as a diagnostic list. Thresholds and metrics remain frozen. This
+viewer does not alter approved golden masters or run inference. Review notes save
+separately under the experiment's `review-notes/` directory. Pending visual label
+findings can be supplied in `review-findings.json`; neither notes nor findings
+change the frozen scores. Unsaved notes prompt before leaving a photo.
+
+## Label approval
+
 Review the November 6 iOS capture session at **http://127.0.0.1:8765**.
 
 ```sh
