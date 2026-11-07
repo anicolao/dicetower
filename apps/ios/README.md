@@ -1,6 +1,8 @@
 # DiceTower Capture for iPhone
 
-Version 0.2 adds the recommended on-device d6 detector to the camera preview. Boxes show upper-face predictions; yellow means provisional, green means the scene is still and three successive readings agree. The header shows the detected count and total. There is no advance dice count. Verify the highlighted faces, especially touching dice; this is an experimental reading, with no game submission or confirmed-roll history yet.
+Version 0.3 adds named-tower sharing through Firebase and the [web observer](https://anicolao.github.io/dicetower/). Name your tower on first launch and enable sharing to publish roll thumbnails and predictions, or keep capture local. The sharing row controls naming and uploads; published history stays visible after sharing stops. See [the Firebase guide](../../docs/FIREBASE.md).
+
+Version 0.2 introduced the recommended on-device d6 detector to the camera preview. Boxes show upper-face predictions; yellow means provisional, green means the scene is still and three successive readings agree. The header shows the detected count and total. There is no advance dice count. Verify the highlighted faces, especially touching dice; this is an experimental reading, with no game submission or confirmed-roll history yet.
 
 Recognition starts with the camera. Auto capture remains a separate opt-in control; use the camera button to collect recognition failures and export them for labeling. Existing sessions survive updates. [Model identity and preprocessing](DiceTower/Models/README.md) are recorded alongside the model resource.
 
@@ -30,7 +32,7 @@ Documents/DiceTower/Sessions/<session UUID>/
 
 The JPEG is the camera's original output, including EXIF orientation; readers must honor that orientation. Tray insets use upright portrait coordinates and refer to recognition/motion analysis, not preexisting die boxes. Thumbnails are orientation-correct display derivatives, not training originals. Automatic captures require a shutter timestamp within 0.6 seconds of the triggering frame and reject observed movement before the shutter. Movement after the exposure does not invalidate a saved photograph.
 
-Each image/metadata pair is written outside the session and published by a directory rename only after both writes succeed. Failed writes remain in `Documents/DiceTower/PendingCaptures` for recovery and are excluded from session ZIPs. Successful photos persist across app restarts and updates. An export uses Foundation's coordinated directory ZIP snapshot; it is copied before the temporary snapshot disappears. There is no account, analytics, server, or automatic network upload in the app.
+Each image/metadata pair is written outside the session and published by a directory rename only after both writes succeed. Failed writes remain in `Documents/DiceTower/PendingCaptures` for recovery and are excluded from session ZIPs. Successful photos persist across app restarts and updates. An export uses Foundation's coordinated directory ZIP snapshot; it is copied before the temporary snapshot disappears. There is no personal account or analytics. Optional sharing signs in anonymously and uploads small roll thumbnails and predictions to Firebase; corpus originals remain local. Turn sharing off to keep new captures local.
 
 ## Build and verify
 
@@ -88,3 +90,5 @@ queued frames. Stillness analysis runs separately at about10Hz. Movement, camera
 interruptions, suspension and tray-setting changes invalidate the current result.
 The model uses Core ML's available compute units. Inference and model loading
 happen off the camera queue. Camera connection and preview are fixed to portrait.
+
+The native cloud publisher queues immutable event IDs on disk before upload, refreshes its anonymous credential securely, and retries while foregrounded. The Apple privacy manifest declares shared user IDs, photos, and gameplay content for app functionality, with no tracking.

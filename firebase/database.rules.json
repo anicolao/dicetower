@@ -1,0 +1,116 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "towers": {
+      ".read": "auth != null && query.orderByChild == 'updatedAt' && query.limitToLast != null && query.limitToLast <= 200",
+      ".indexOn": [
+        "updatedAt"
+      ],
+      "$tower": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid == $tower && newData.exists()",
+        ".validate": "newData.hasChildren(['name','createdAt','updatedAt','sharing','schemaVersion'])",
+        "name": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 60"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && (!data.exists() || newData.val() == data.val())"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber() && newData.val() <= now + 60000"
+        },
+        "sharing": {
+          ".validate": "newData.isBoolean()"
+        },
+        "schemaVersion": {
+          ".validate": "newData.val() == 1"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "rolls": {
+      "$tower": {
+        ".read": "auth != null && query.orderByChild == 'capturedAt' && query.limitToLast != null && query.limitToLast <= 100",
+        ".indexOn": [
+          "capturedAt"
+        ],
+        "$event": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid == $tower && !data.exists() && root.child('towers').child($tower).exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['schemaVersion','eventId','rollId','kind','capturedAt','receivedAt','modelSHA256','count','total','thumbnail','experimental']) && ((newData.child('count').val() == 0 && !newData.child('dice').exists()) || (newData.child('count').val() > 0 && newData.child('dice').hasChild('0'))) && newData.child('total').val() >= newData.child('count').val() && newData.child('total').val() <= newData.child('count').val() * 6",
+          "schemaVersion": {
+            ".validate": "newData.val() == 1"
+          },
+          "eventId": {
+            ".validate": "newData.val() == $event"
+          },
+          "rollId": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 64"
+          },
+          "kind": {
+            ".validate": "newData.val() == 'roll' || newData.val() == 'recognitionChanged'"
+          },
+          "capturedAt": {
+            ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= now + 300000"
+          },
+          "receivedAt": {
+            ".validate": "newData.isNumber() && newData.val() == now"
+          },
+          "modelSHA256": {
+            ".validate": "newData.isString() && newData.val().length == 64"
+          },
+          "count": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 30 && newData.val() % 1 == 0"
+          },
+          "total": {
+            ".validate": "newData.isNumber() && newData.val() % 1 == 0"
+          },
+          "thumbnail": {
+            ".validate": "newData.isString() && newData.val().length <= 100000 && newData.val().beginsWith('data:image/jpeg;base64,')"
+          },
+          "experimental": {
+            ".validate": "newData.val() == true"
+          },
+          "dice": {
+            "$die": {
+              ".validate": "newData.hasChildren(['value','confidence','box']) && $die.matches(/^(0|[1-9]|[12][0-9])$/) && newData.parent().parent().child('count').val() > 0",
+              "value": {
+                ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6 && newData.val() % 1 == 0"
+              },
+              "confidence": {
+                ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1"
+              },
+              "box": {
+                ".validate": "newData.hasChildren(['x','y','width','height']) && newData.child('x').val() + newData.child('width').val() <= 1.000001 && newData.child('y').val() + newData.child('height').val() <= 1.000001",
+                "x": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1"
+                },
+                "y": {
+                  ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1"
+                },
+                "width": {
+                  ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 1"
+                },
+                "height": {
+                  ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 1"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              },
+              "$other": {
+                ".validate": false
+              }
+            }
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    }
+  }
+}

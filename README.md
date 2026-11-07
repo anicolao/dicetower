@@ -2,7 +2,7 @@
 
 DiceTower will turn physical dice rolls into results that digital games can use. A native iOS app will watch a dice tray through an overhead iPhone camera and recognize dice with on-device machine learning.
 
-**Status: live recognition prototype.** The native iOS app runs the recommended local d6 model on the camera feed, overlays face predictions, and shows a settled count and total. Photo collection and ZIP export remain available. See [the iPhone guide](apps/ios/README.md). Readings are experimental and need visual verification.
+**Status: connected recognition prototype.** The native iOS app runs the recommended local d6 model on the camera feed, overlays face predictions, and shows a settled count and total. Named towers can publish roll thumbnails and predictions to Firebase, with a live [web observer](https://anicolao.github.io/dicetower/) for independent tower tabs. Photo collection and ZIP export remain available. See [the iPhone guide](apps/ios/README.md). Readings are experimental and need visual verification.
 
 ## Prototype
 
@@ -14,6 +14,7 @@ The prototype will run recognition entirely on the phone and work offline. Train
 
 ## Documents
 
+- [docs/FIREBASE.md](docs/FIREBASE.md): named towers, event streams, security, local testing, and deployment.
 - [VISION.md](VISION.md): product direction, principles, and boundaries.
 - [MVP_DESIGN.md](MVP_DESIGN.md): prior-work findings, dataset audit, training experiments, native app architecture, and measurable acceptance gates.
 - [CORPUS_ASSESSMENT.md](CORPUS_ASSESSMENT.md): inspection of the supplied November 2026 test archive, including usable pip-d6 examples and ground-truth limitations.

@@ -9,12 +9,13 @@ struct CaptureView: View {
     @ObservedObject var model: CaptureViewModel
     @ObservedObject private var camera: CameraService
     @ObservedObject private var recognition: DiceRecognizer
+    @ObservedObject private var cloud: CloudTowerService
     @Environment(\.scenePhase) private var scenePhase
     @State private var settings = false
     @State private var library = false
     @State private var newSession = false
     @State private var notes = ""
-    init(model: CaptureViewModel) { self.model = model; camera = model.camera; recognition = model.camera.recognizer }
+    init(model: CaptureViewModel) { self.model = model; camera = model.camera; recognition = model.camera.recognizer; cloud = model.cloud }
 
     var body: some View {
         NavigationStack {
@@ -53,6 +54,14 @@ struct CaptureView: View {
                         Label(camera.isDemo ? "SIMULATOR FIXTURE" : "REAR CAMERA · 1×", systemImage: "camera")
                             .font(.caption2.bold()).padding(10).background(.black.opacity(0.65), in: Capsule()).foregroundStyle(.white).padding(12)
                     }
+                    Button { cloud.showSetup = true } label: {
+                        HStack {
+                            Image(systemName: cloud.sharing ? "antenna.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right.slash")
+                            Text(cloud.status).font(.caption)
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption)
+                        }
+                    }.accessibilityIdentifier("tower-sharing")
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Circle().fill(camera.automatic ? mint : Color.secondary).frame(width: 8, height: 8)
@@ -107,6 +116,7 @@ struct CaptureView: View {
                 }.disabled(!camera.ready || camera.saving || model.loading || model.exporting)
                     .padding(.horizontal, 18).padding(.vertical, 10).background(.regularMaterial)
             }
+            .sheet(isPresented: $cloud.showSetup) { TowerSetupView(cloud: cloud) { camera.recognizer.reset(newRoll: true) } }
             .sheet(isPresented: $settings) { CaptureSettingsView(model: model) }
             .sheet(isPresented: $library) { SessionLibraryView(model: model) }
             .sheet(isPresented: $newSession) {
@@ -293,5 +303,37 @@ private struct DiceOverlay: View {
                     .position(x: rect.midX, y: max(14, rect.minY - 13))
             }
         }.allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
+private struct TowerSetupView: View {
+    @ObservedObject var cloud: CloudTowerService
+    let connected: () -> Void
+    @State private var name = ""
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Name your DiceTower").font(.title2.bold())
+                    Text("Pick this name at anicolao.github.io/dicetower to watch your rolls. Each tower has its own stream.")
+                    TextField("e.g. Dining room tower", text: $name).textInputAutocapitalization(.words).accessibilityIdentifier("tower-name")
+                }
+                Section {
+                    Button(cloud.busy ? "Connecting…" : "Start sharing rolls") {
+                        Task { if await cloud.configure(name: name) { connected() } }
+                    }.disabled(cloud.busy || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.utf16.count > 60).accessibilityIdentifier("connect-tower")
+                    Button(cloud.sharing ? "Stop sharing · keep captures local" : "Keep captures local") { cloud.keepLocal() }
+                        .disabled(cloud.busy).accessibilityIdentifier("keep-local")
+                    Text(cloud.status).font(.footnote)
+                }
+                Section("What is shared") {
+                    Text("Anyone using the observer can see your tower name, timestamps, small camera thumbnails and experimental dice predictions. Full original photos stay on this phone. Queued rolls retry when the connection returns. Stopping sharing leaves the published history visible.")
+                    if let profile = cloud.profile {
+                        Link("Open this tower’s observer", destination: URL(string: "https://anicolao.github.io/dicetower/?tower=\(profile.id)")!)
+                    }
+                }
+            }.navigationTitle("DiceTower sharing")
+                .onAppear { name = cloud.profile?.name ?? "" }
+        }.interactiveDismissDisabled(cloud.profile == nil).presentationDetents([.large])
     }
 }

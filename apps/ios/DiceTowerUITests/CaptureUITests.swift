@@ -1,6 +1,41 @@
 import XCTest
 
 @MainActor final class CaptureUITests: XCTestCase {
+    func testTowerSetupCanKeepCapturesLocal() throws {
+        let app = XCUIApplication(); app.launchArguments = ["-capture-demo"]; app.launch()
+        let sharing = app.buttons["tower-sharing"]
+        XCTAssertTrue(sharing.waitForExistence(timeout: 15))
+        if !sharing.isHittable { app.swipeUp() }
+        sharing.tap()
+        XCTAssertTrue(app.textFields["tower-name"].waitForExistence(timeout: 10))
+        app.buttons["keep-local"].tap()
+        XCTAssertTrue(app.buttons["manual-photo"].exists)
+    }
+
+    func testLiveFirebaseTowerRegistrationAndRollUpload() throws {
+        guard ProcessInfo.processInfo.environment["DICETOWER_LIVE_QA"] == "1" else { throw XCTSkip("Live Firebase QA requires explicit opt-in.") }
+        let app = XCUIApplication()
+        app.launchArguments = ["-capture-demo", "-cloud-demo", "-cloudTowerOnboarded", "NO"]
+        app.launch()
+        let field = app.textFields["tower-name"]
+        XCTAssertTrue(field.waitForExistence(timeout: 20))
+        field.tap(); field.typeText("QA Simulator Rig")
+        app.buttons["connect-tower"].tap()
+        let status = app.buttons["tower-sharing"]
+        XCTAssertTrue(status.waitForExistence(timeout: 40))
+        expectation(for: NSPredicate(format: "label CONTAINS %@", "Live"), evaluatedWith: status)
+        waitForExpectations(timeout: 40)
+        let recognition = app.staticTexts["recognition-status"]
+        expectation(for: NSPredicate(format: "label BEGINSWITH %@", "Settled"), evaluatedWith: recognition)
+        waitForExpectations(timeout: 40)
+        attach(app, "07-firebase-sharing")
+        let next = app.buttons["next-arrangement"]
+        if !next.isHittable { app.swipeUp() }; next.tap()
+        let delivery = expectation(description: "Deliver the new motion episode")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { delivery.fulfill() }
+        waitForExpectations(timeout: 25)
+    }
+
     func testBundledModelProducesASettledReading() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-capture-demo"]

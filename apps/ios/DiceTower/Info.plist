@@ -9,7 +9,7 @@
   <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
   <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
   <key>LSRequiresIPhoneOS</key><true/>
-  <key>NSCameraUsageDescription</key><string>DiceTower uses the rear camera to save photos of settled dice for a training dataset. Photos stay on your phone until you choose to export them.</string>
+  <key>NSCameraUsageDescription</key><string>DiceTower uses the rear camera to recognize dice and collect photos. When you enable sharing, small roll thumbnails and predictions are published to your named tower. Original photos stay on your phone until you export them.</string>
   <key>ITSAppUsesNonExemptEncryption</key><false/>
   <key>UIFileSharingEnabled</key><true/>
   <key>LSSupportsOpeningDocumentsInPlace</key><true/>
