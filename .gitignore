@@ -13,3 +13,6 @@ CORPUS_NOTES.md
 local-data/
 DiceTower-*.zip
 __pycache__/
+
+# Local trained model bundled into TestFlight; provenance is tracked separately.
+apps/ios/DiceTower/Models/*.mlmodel

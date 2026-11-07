@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {spawn,execFileSync} from 'node:child_process';
 import {configuration,request,app} from './app-store-connect.mjs';
@@ -9,7 +10,7 @@ const ios=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const repo=path.resolve(ios,'../..');
 const developer=process.env.DICETOWER_XCODE_DEVELOPER_DIR||'/Applications/Xcode.app/Contents/Developer';
 const c=configuration();
-const version=process.env.DICETOWER_MARKETING_VERSION||'0.1.0';
+const version=process.env.DICETOWER_MARKETING_VERSION||'0.2.0';
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 async function command(program,args,log) {
@@ -40,6 +41,9 @@ async function assignTester(groupID) {
 }
 
 async function main() {
+  const modelPath=path.join(ios,'DiceTower/Models/DiceTowerD6.mlmodel');
+  const expectedModel='416678e1d7e4e7f7b867e1513fce072744a49c6feca3cdfb90b12417be8091b9';
+  if(!fs.existsSync(modelPath)||crypto.createHash('sha256').update(fs.readFileSync(modelPath)).digest('hex')!==expectedModel)throw new Error('Recommended DiceTowerD6 model is missing or has changed; see DiceTower/Models/README.md.');
   const a=await app();
   const builds=a?await request('GET',`/v1/builds?filter%5Bapp%5D=${a.id}&limit=200`):{data:[]};
   const number=process.env.DICETOWER_BUILD_NUMBER||String(Math.max(0,...builds.data.map(b=>Number(b.attributes.version)||0))+1);
@@ -84,11 +88,11 @@ async function main() {
   const testerID=await assignTester(group.id);
   const testers=await request('GET',`/v1/betaGroups/${group.id}/betaTesters?limit=200`);
   if(!testers.data.some(t=>t.id===testerID))throw new Error('Apple did not confirm internal tester membership.');
-  const notes='Mount the iPhone above the tray with all edges visible. Adjust the dashed tray area in Capture settings. Start auto capture: the first still scene is saved, including an empty tray. Roll or rearrange the dice and keep hands out until the saved counter increases. No dice count is needed. Pause before adjusting the rig. Use + for a new session with notes about dice, lighting, and mount height. Share exports the original JPEGs and metadata as a ZIP for later labeling. Everything stays on your phone until you export. No dice-recognition model is included in this capture build.';
+  const notes='Live on-device d6 recognition: mount the phone above the tray, keep hands clear and let the dice settle. Boxes show detected faces; green boxes and a count/total indicate a steady reading. No dice count is required. Experimental: check all values, especially touching dice. In Capture settings, match the dashed tray area to your rig; it controls recognition and movement detection. The camera button saves a full original photo for failure collection. Auto capture, session notes and ZIP export remain available. Predictions are not approved labels. All inference runs locally.';
   const localizations=await request('GET',`/v1/builds/${build.id}/betaBuildLocalizations`);
   if(!localizations.data.length)await request('POST','/v1/betaBuildLocalizations',{data:{type:'betaBuildLocalizations',attributes:{locale:'en-CA',whatsNew:notes},relationships:{build:{data:{type:'builds',id:build.id}}}}});
   const detail=await request('GET',`/v1/builds/${build.id}/buildBetaDetail`);
-  const report={appID:appRecord.id,buildID:build.id,version,buildNumber:number,processingState:'VALID',betaDetails:detail.data.attributes,testflightGroup:'Internal',configuredTesterConfirmed:true,completedAt:new Date().toISOString(),commit:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim()};
+  const report={modelSHA256:expectedModel,appID:appRecord.id,buildID:build.id,version,buildNumber:number,processingState:'VALID',betaDetails:detail.data.attributes,testflightGroup:'Internal',configuredTesterConfirmed:true,completedAt:new Date().toISOString(),commit:execFileSync('git',['rev-parse','HEAD'],{cwd:repo,encoding:'utf8'}).trim()};
   fs.writeFileSync(path.join(root,'release.json'),JSON.stringify(report,null,2));
   console.log(JSON.stringify(report,null,2));
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import CoreImage
 @preconcurrency import AVFoundation
 import UIKit
 import ImageIO
@@ -9,11 +10,15 @@ import DiceCaptureCore
 /// AVFoundation configuration, frame analysis, and capture ownership share one queue.
 final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     let session = AVCaptureSession()
+    let recognizer = DiceRecognizer()
+    private var recognitionMotion = QuiescenceDetector()
+    private var recognitionStill = false
     private let queue = DispatchQueue(label: "org.boardgamescafe.dicetower.camera", qos: .userInitiated)
     private let photoOutput = AVCapturePhotoOutput()
     private let videoOutput = AVCaptureVideoDataOutput()
     private var device: AVCaptureDevice?
     private var configured = false
+    private var recognitionRunning = false
     private var runningAuto = false
     private var detector = QuiescenceDetector()
     private var region = CaptureRegion()
@@ -80,20 +85,24 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
 
     func suspend() {
         setAutomatic(false)
+        recognizer.reset("Camera paused")
         queue.async {
+            self.recognitionRunning = false
+            self.recognitionMotion.reset(); self.recognitionStill = false
             self.detector.reset()
             if self.session.isRunning { self.session.stopRunning() }
+            self.recognizer.reset("Camera paused")
             #if DEBUG && targetEnvironment(simulator)
             self.demoTimer?.cancel(); self.demoTimer = nil
             #endif
-            DispatchQueue.main.async { self.ready = false }
+            DispatchQueue.main.async { self.ready = false; UIApplication.shared.isIdleTimerDisabled = false }
         }
     }
 
     func setAutomatic(_ enabled: Bool) {
         DispatchQueue.main.async {
             self.automatic = enabled
-            UIApplication.shared.isIdleTimerDisabled = enabled
+            UIApplication.shared.isIdleTimerDisabled = enabled || self.ready
         }
         queue.async {
             self.runningAuto = enabled
@@ -104,6 +113,9 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
 
     func update(parameters: CaptureParameters, region: CaptureRegion, lockCamera: Bool) {
         queue.async {
+            self.recognitionMotion.parameters = parameters
+            self.recognitionMotion.reset(); self.recognitionStill = false
+            self.recognizer.reset()
             self.detector.parameters = parameters
             self.detector.reset()
             self.region = region
@@ -165,7 +177,10 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
             }
             if !session.isRunning { session.startRunning() }
             detector.reset()
-            DispatchQueue.main.async { self.ready = true; self.permissionDenied = false }
+            recognitionRunning = true
+            recognitionMotion.reset(); recognitionStill = false
+            recognizer.reset()
+            DispatchQueue.main.async { self.ready = true; self.permissionDenied = false; UIApplication.shared.isIdleTimerDisabled = true }
             publish("Frame the tray, then start auto capture", progress: 0)
         } catch { fail(error.localizedDescription) }
     }
@@ -184,6 +199,9 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
 
     private func pauseForInterruption() {
         queue.async {
+            self.recognitionRunning = false
+            self.recognizer.reset("Camera interrupted")
+            self.recognitionMotion.reset(); self.recognitionStill = false
             self.runningAuto = false; self.detector.reset()
             DispatchQueue.main.async { self.automatic = false; self.ready = false; UIApplication.shared.isIdleTimerDisabled = false }
             self.publish("Camera interrupted · return to the app or tap Retry camera", progress: 0)
@@ -193,6 +211,14 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     private func process(_ frame: AnalysisFrame, at timestamp: Double) {
         lastFrameTime = timestamp
         lastFrameArrival = ProcessInfo.processInfo.systemUptime
+        let recognitionObservation = recognitionMotion.observe(frame, at: timestamp)
+        if recognitionObservation.shouldCapture {
+            recognitionStill = true
+        } else if recognitionStill && !recognitionMotion.pendingCaptureIsValid {
+            recognitionMotion.reset()
+            recognitionStill = false
+            recognizer.reset()
+        }
         guard runningAuto || pending?.trigger == "automatic" else { return }
         let observation = detector.observe(frame, at: timestamp)
         if pending?.trigger == "automatic", !detector.pendingCaptureIsValid, pendingInvalidatedAt == nil { pendingInvalidatedAt = timestamp }
@@ -301,7 +327,8 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     private func startDemo() {
         queue.async {
             guard self.demoTimer == nil else { return }
-            DispatchQueue.main.async { self.isDemo = true; self.ready = true }
+            self.recognitionRunning = true
+            DispatchQueue.main.async { self.isDemo = true; self.ready = true; UIApplication.shared.isIdleTimerDisabled = true }
             let timer = DispatchSource.makeTimerSource(queue: self.queue)
             timer.schedule(deadline: .now(), repeating: 0.1)
             timer.setEventHandler { [weak self] in
@@ -314,13 +341,19 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
                 let offset = self.demoMotionTicks > 0 ? (self.demoTick % 2) * 20 : 0
                 let x = 20 + (self.demoArrangement % 3) * 10 + offset
                 for y in 45..<61 { for xx in x..<min(x + 16, 96) { pixels[y * 96 + xx] = 220 } }
-                self.process(AnalysisFrame(width: 96, height: 128, pixels: pixels), at: ProcessInfo.processInfo.systemUptime)
+                let time = ProcessInfo.processInfo.systemUptime
+                self.process(AnalysisFrame(width: 96, height: 128, pixels: pixels), at: time)
+                if let ci = CIImage(data: image) { self.recognizer.submit(ci, region: self.region, still: self.recognitionStill, timestamp: time) }
             }
             self.demoTimer = timer; timer.resume()
             self.publish("Simulator fixture · frame the tray", progress: 0)
         }
     }
     private func demoPhoto() -> Data {
+        // Local-only QA: inject an EXIF-normalized held-out image into the simulator
+        // Documents directory. Never included in a release or a corpus export.
+        let fixture = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("recognition-qa.jpg")
+        if let data = try? Data(contentsOf: fixture) { return data }
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 768, height: 1024))
         return renderer.jpegData(withCompressionQuality: 0.95) { context in
             UIColor(red: 0.06, green: 0.08, blue: 0.08, alpha: 1).setFill(); context.fill(CGRect(x: 0, y: 0, width: 768, height: 1024))
@@ -342,6 +375,7 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
 
 extension CameraService: AVCaptureVideoDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard recognitionRunning else { return }
         let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
         guard timestamp - lastAnalysisTime >= 0.09, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         lastAnalysisTime = timestamp
@@ -363,6 +397,7 @@ extension CameraService: AVCaptureVideoDataOutputSampleBufferDelegate {
             }
         }
         process(.init(width: outWidth, height: outHeight, pixels: pixels), at: timestamp)
+        recognizer.submit(CIImage(cvPixelBuffer: buffer), region: region, still: recognitionStill, timestamp: timestamp)
     }
 }
 

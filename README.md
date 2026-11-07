@@ -2,7 +2,7 @@
 
 DiceTower will turn physical dice rolls into results that digital games can use. A native iOS app will watch a dice tray through an overhead iPhone camera and recognize dice with on-device machine learning.
 
-**Status: capture prototype.** A native iOS app now collects photographs automatically when the camera scene settles. See [the iPhone capture guide](apps/ios/README.md) for use, export format, tests, and TestFlight release. Dice recognition remains experimental; the capture app saves unlabeled data for the next training round.
+**Status: live recognition prototype.** The native iOS app runs the recommended local d6 model on the camera feed, overlays face predictions, and shows a settled count and total. Photo collection and ZIP export remain available. See [the iPhone guide](apps/ios/README.md). Readings are experimental and need visual verification.
 
 ## Prototype
 
@@ -22,7 +22,7 @@ The proposed starting point is the local `../dicecam/MyObjectDetector.mlproj` Cr
 
 ## Development approach
 
-The current app provides native camera preview, scene-stillness detection, automatic/manual photographs, session notes, review, and ZIP export. It infers no face values and does not constrain captures to a preset dice count. The initial model experiments showed poor generalization to newer images; collecting data on the actual rig is the next step. Local training artifacts remain outside Git.
+The current app provides native camera preview, scene-stillness detection, automatic/manual photographs, session notes, review, and ZIP export. It also performs on-device face recognition without a preset dice count. Additional rig data improved the model, but touching dice remain difficult. Local training artifacts and the model binary remain outside Git; the app guide records the required model resource.
 
 The capture app supports iOS 17 and later. Development uses a Mac with Xcode; camera behavior needs a physical iPhone. Recognition and the remaining game-facing roll workflow are specified in the design documents. Build and release commands are in [apps/ios/README.md](apps/ios/README.md).
 

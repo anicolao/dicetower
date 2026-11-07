@@ -17,7 +17,7 @@ struct ShareArtifact: Identifiable { let id = UUID(); let url: URL }
     @Published var errorMessage: String?
     @Published var shareArtifact: ShareArtifact?
     @Published var parameters = CaptureParameters() { didSet { applySettings() } }
-    @Published var region = CaptureRegion() { didSet { applySettings() } }
+    @Published var region = CaptureRegion(left: 10.0/900, top: 0.1, right: 150.0/900, bottom: 0.1) { didSet { applySettings() } }
     @Published var lockCamera = false { didSet { applySettings() } }
 
     init() {

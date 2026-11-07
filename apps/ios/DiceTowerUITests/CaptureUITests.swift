@@ -1,6 +1,17 @@
 import XCTest
 
-final class CaptureUITests: XCTestCase {
+@MainActor final class CaptureUITests: XCTestCase {
+    func testBundledModelProducesASettledReading() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-capture-demo"]
+        app.launch()
+        let status = app.staticTexts["recognition-status"]
+        XCTAssertTrue(status.waitForExistence(timeout: 20))
+        expectation(for: NSPredicate(format: "label BEGINSWITH %@ OR label BEGINSWITH %@", "Settled", "No dice detected"), evaluatedWith: status)
+        waitForExpectations(timeout: 60)
+        attach(app, "06-live-model-settled")
+    }
+
     func testAutomaticCaptureRearrangementManualCaptureAndExport() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-capture-demo"]
