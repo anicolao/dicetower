@@ -11,12 +11,14 @@ class UploadDrainTest {
     @get:Rule val folder=TemporaryFolder()
     private class Backend: CloudBackend {
         var uid="owner";var failed=false;var lostAck=false
+        val rejected=mutableSetOf<String>()
         val calls=mutableListOf<Triple<String,String,Boolean>>()
         val events=mutableMapOf<String,JSONObject>()
         override suspend fun owner()=uid
         override suspend fun call(path: String,method: String,body: JSONObject?,createOnly: Boolean): Reply {
             calls.add(Triple(path,method,createOnly))
             if(failed)throw CloudFailure(0)
+            if((createOnly && path.substringAfterLast('/') in rejected) || (method=="PATCH" && body!=null && body.keys().asSequence().any { it in rejected }))throw CloudFailure(403)
             if(createOnly) {
                 val old=events[path];if(old!=null)return Reply(412,old)
                 events[path]=body!!
@@ -41,8 +43,9 @@ class UploadDrainTest {
     @Test fun identityChangesNeverMoveQueuedDataToAnotherTower()=runBlocking {
         val outbox=DiskOutbox(folder.newFolder());val backend=Backend()
         outbox.put("rolls","old","e1",JSONObject().put("eventId","e1"))
-        try {UploadDrain(backend,outbox).flush("owner"){true};fail()}catch(_:IllegalStateException){}
-        assertEquals(1,outbox.count());assertTrue(backend.calls.isEmpty())
+        UploadDrain(backend,outbox).flush("owner"){true}
+        assertEquals(0,outbox.count());assertEquals(1,outbox.heldCount());assertTrue(backend.calls.isEmpty())
+        outbox.retryHeld();assertEquals(1,outbox.count())
     }
     @Test fun metricsBatchIsSeparateAndFailureKeepsEveryFile()=runBlocking {
         val outbox=DiskOutbox(folder.newFolder());val backend=Backend()
@@ -58,5 +61,31 @@ class UploadDrainTest {
         outbox.put("rolls","owner","e1",JSONObject().put("eventId","e1"))
         UploadDrain(backend,outbox).flush("owner"){false}
         assertEquals(1,outbox.count());assertTrue(backend.calls.isEmpty())
+    }
+    @Test fun badMiddleFilesDoNotBlockLaterRollsOrMetricsAndCanBeRestored()=runBlocking {
+        val root=folder.newFolder();val outbox=DiskOutbox(root);val backend=Backend()
+        for(id in listOf("0-first","C-rejected","F-last"))outbox.put("rolls","owner",id,JSONObject().put("eventId",id))
+        java.io.File(root,"rolls/B-unreadable.json").writeText("not JSON")
+        outbox.put("metrics","owner","metric",JSONObject().put("metricId","metric"))
+        backend.rejected.add("C-rejected")
+        UploadDrain(backend,outbox).flush("owner"){true}
+        assertEquals(setOf("rolls/owner/0-first","rolls/owner/F-last"),backend.events.keys)
+        assertTrue(backend.calls.any { it.first=="metrics/owner" });assertEquals(0,outbox.count());assertEquals(2,outbox.heldCount())
+        outbox.retryHeld();assertEquals(2,outbox.count());assertEquals(0,outbox.heldCount())
+        assertEquals("not JSON",java.io.File(root,"rolls/B-unreadable.json").readText())
+    }
+    @Test fun oneRejectedMetricIsIsolatedFromItsBatch()=runBlocking {
+        val outbox=DiskOutbox(folder.newFolder());val backend=Backend()
+        for(id in listOf("a","bad","z"))outbox.put("metrics","owner",id,JSONObject().put("metricId",id))
+        backend.rejected.add("bad")
+        UploadDrain(backend,outbox).flush("owner"){true}
+        assertEquals(0,outbox.count());assertEquals(1,outbox.heldCount());assertTrue(outbox.heldIssue().contains("403"))
+        assertEquals(4,backend.calls.size)
+    }
+    @Test fun transientRollFailureDoesNotPreventMetricsAttempt()=runBlocking {
+        val outbox=DiskOutbox(folder.newFolder());val backend=Backend();backend.failed=true
+        outbox.put("rolls","owner","r",JSONObject().put("eventId","r"));outbox.put("metrics","owner","m",JSONObject().put("metricId","m"))
+        try {UploadDrain(backend,outbox).flush("owner"){true};fail()}catch(_:CloudFailure){}
+        assertTrue(backend.calls.any { it.first=="metrics/owner" });assertEquals(2,outbox.count());assertEquals(0,outbox.heldCount())
     }
 }

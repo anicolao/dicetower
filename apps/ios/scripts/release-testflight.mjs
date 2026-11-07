@@ -10,7 +10,7 @@ const ios=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const repo=path.resolve(ios,'../..');
 const developer=process.env.DICETOWER_XCODE_DEVELOPER_DIR||'/Applications/Xcode.app/Contents/Developer';
 const c=configuration();
-const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.3';
+const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.4';
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 async function command(program,args,log) {
@@ -95,7 +95,7 @@ async function main() {
   const testerID=await assignTester(group.id);
   const testers=await request('GET',`/v1/betaGroups/${group.id}/betaTesters?limit=200`);
   if(!testers.data.some(t=>t.id===testerID))throw new Error('Apple did not confirm internal tester membership.');
-  const notes='Restore the original sensitive detection/arming sequence: one disturbed frame can wake recognition again. After 200ms of stillness and two agreeing inferences, repeated dice values at the same positions are discarded instead of uploaded as another roll. Each discard is recorded in the separate Firebase metrics stream with a session counter and the matching original event ID. Duplicate counts are visible in the app and updated web observer. The duplicate tolerance is 1% of frame width/height at die centers; moved dice or changed values still report. Photo capture and the model are unchanged.';
+  const notes='Fix upload queue blocking: unreadable or server-rejected records are preserved in a held queue instead of preventing later rolls and all metrics from uploading. Valid records continue, including historical pending rolls behind a failing record. A rejected metrics batch is retried individually to isolate the bad sample. Temporary network/auth errors remain pending for retry. The sharing screen shows held upload count, record prefix and error, with a Retry held uploads control. Upload health is also reported in the metrics stream and PR web preview. Recognition, arming, model and duplicate detection are unchanged.';
   const localizations=await request('GET',`/v1/builds/${build.id}/betaBuildLocalizations`);
   if(!localizations.data.length)await request('POST','/v1/betaBuildLocalizations',{data:{type:'betaBuildLocalizations',attributes:{locale:'en-CA',whatsNew:notes},relationships:{build:{data:{type:'builds',id:build.id}}}}});
   const detail=await request('GET',`/v1/builds/${build.id}/buildBetaDetail`);

@@ -19,3 +19,10 @@ test('legacy metrics remain readable and duplicate decisions carry a match and s
  for(const override of [{duplicateCount:-1},{duplicateCount:1.5},{duplicateCount:0},{duplicateDiscarded:'yes'},{duplicateOfEventId:''},{eventId:'new'},{phase:'active'},{agreementCount:1}])assert.equal(normalizeMetric('bad',{...duplicate,...override}),null);
  assert.equal(normalizeMetric('partial',{...metric,duplicateCount:1}),null);
 });
+test('upload health distinguishes held records from legacy samples',()=>{
+ assert.equal(normalizeMetric('old',metric).uploadHeldCount,null);
+ const status={...metric,uploadHeldCount:2,uploadIssue:'Roll ABC: Firebase request failed (403).'};
+ assert.equal(normalizeMetric('held',status).uploadHeldCount,2);
+ for(const extra of [{uploadHeldCount:-1},{uploadHeldCount:.5},{uploadIssue:'x'.repeat(201)},{uploadIssue:3}])assert.equal(normalizeMetric('bad',{...status,...extra}),null);
+ assert.equal(normalizeMetric('partial',{...metric,uploadHeldCount:2}),null);
+});

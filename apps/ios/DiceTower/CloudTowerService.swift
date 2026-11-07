@@ -26,6 +26,8 @@ struct CloudRoll: Codable, Sendable {
     @Published private(set) var sharing: Bool
     @Published private(set) var queued = 0
     @Published private(set) var queuedMetrics = 0
+    @Published private(set) var heldUploads = 0
+    @Published private(set) var uploadIssue = ""
     @Published private(set) var status = "Roll sharing is off"
     @Published private(set) var busy = false
     @Published var showSetup = false
@@ -33,6 +35,7 @@ struct CloudRoll: Codable, Sendable {
     private var worker: Task<Void, Never>?
     private var flushing = false
     private var flushRequested = false
+    private var latestMetric: RecognitionMetrics?
 
     init() {
         #if DEBUG && targetEnvironment(simulator)
@@ -91,8 +94,31 @@ struct CloudRoll: Codable, Sendable {
     }
     func receiveMetrics(_ sample: RecognitionMetrics) async {
         guard sharing, let profile, let client else { return }
+        var sample = sample
+        sample.uploadHeldCount = heldUploads; sample.uploadIssue = uploadIssue
+        latestMetric = sample
         do { try await client.enqueueMetric(sample, towerID: profile.id); await flush() }
         catch { status = "Metrics could not be queued: \(error.localizedDescription)" }
+    }
+    func retryHeldUploads() async {
+        guard let client else { return }
+        do { try await client.retryHeld(); await refreshHeld(); await flush() }
+        catch { status = "Could not retry held uploads: \(error.localizedDescription)" }
+    }
+    private func refreshHeld() async {
+        guard let client else { return }
+        let value = await client.heldStatus()
+        let changed = heldUploads != value.count || uploadIssue != value.issue
+        heldUploads = value.count; uploadIssue = value.issue
+        if changed, sharing, let profile, var sample = latestMetric {
+            sample.metricId = UUID().uuidString; sample.recordedAt = Date().timeIntervalSince1970 * 1000
+            sample.duplicateDiscarded = false; sample.duplicateOfEventId = ""
+            sample.uploadHeldCount = value.count; sample.uploadIssue = value.issue
+            // This is a delivery-status snapshot, not another recognition event.
+            sample.eventId = ""
+            do { try await client.enqueueMetric(sample, towerID: profile.id); flushRequested = true }
+            catch { status = "Upload diagnostics could not be saved: \(error.localizedDescription)" }
+        }
     }
     func flush() async {
         guard sharing, let profile, let client else { return }
@@ -107,15 +133,17 @@ struct CloudRoll: Codable, Sendable {
                 queued = try await client.pendingCount()
                 queuedMetrics = try await client.pendingMetricsCount()
                 try await client.flush(towerID: profile.id)
+                await refreshHeld()
                 queued = try await client.pendingCount()
                 queuedMetrics = try await client.pendingMetricsCount()
                 if queued > 0 || queuedMetrics > 0 { flushRequested = true }
             }
-            if sharing { status = "Live · \(profile.name)" }
+            if sharing { status = heldUploads > 0 ? "\(heldUploads) held · \(uploadIssue) · other uploads continue" : "Live · \(profile.name)" }
         } catch {
+            await refreshHeld()
             queued = (try? await client.pendingCount()) ?? queued
             queuedMetrics = (try? await client.pendingMetricsCount()) ?? queuedMetrics
-            status = queued + queuedMetrics > 0 ? "\(queued) rolls, \(queuedMetrics) metrics queued · retrying" : "Waiting for connection · \(profile.name)"
+            status = "\(queued) rolls, \(queuedMetrics) metrics queued; \(heldUploads) held · \(error.localizedDescription)"
         }
     }
 }
@@ -215,11 +243,40 @@ actor FirebaseTowerClient {
     func enqueue(_ roll: CloudRoll, towerID: String) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try JSONEncoder().encode(Pending(towerID: towerID, roll: roll)).write(to: directory.appendingPathComponent(roll.eventId + ".json"), options: .atomic)
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("-upload-poison-demo"),
+           ProcessInfo.processInfo.arguments.contains("-cloud-demo"),
+           !FileManager.default.fileExists(atPath: directory.appendingPathComponent("poison-qa-seeded").path) {
+            // Explicit, live-QA-only fault injection: a bad middle UUID and a bad
+            // metric must not block either valid end of the queue or telemetry.
+            let encoded = try JSONEncoder().encode(Pending(towerID: towerID, roll: roll))
+            let ids = ["0" + UUID().uuidString.dropFirst(), "F" + UUID().uuidString.dropFirst()]
+            for id in ids {
+                var object = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+                var value = object["roll"] as! [String: Any]; value["eventId"] = id; value["rollId"] = id; object["roll"] = value
+                try JSONSerialization.data(withJSONObject: object).write(to: directory.appendingPathComponent(id + ".json"), options: .atomic)
+            }
+            try Data("not JSON".utf8).write(to: directory.appendingPathComponent("A0000000-0000-4000-8000-000000000001.json"), options: .atomic)
+            let metrics = directory.appendingPathComponent("metrics"); try FileManager.default.createDirectory(at: metrics, withIntermediateDirectories: true)
+            try Data("not JSON".utf8).write(to: metrics.appendingPathComponent("A0000000-0000-4000-8000-000000000002.json"), options: .atomic)
+            try JSONEncoder().encode(ids).write(to: directory.appendingPathComponent("poison-qa-seeded"), options: .atomic)
+        }
+        #endif
     }
     func enqueueMetric(_ metric: RecognitionMetrics, towerID: String) throws {
         let folder = directory.appendingPathComponent("metrics", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try JSONEncoder().encode(PendingMetric(towerID: towerID, metric: metric)).write(to: folder.appendingPathComponent(metric.metricId + ".json"), options: .atomic)
+        #if DEBUG && targetEnvironment(simulator)
+        if ProcessInfo.processInfo.arguments.contains("-upload-poison-demo"),
+           ProcessInfo.processInfo.arguments.contains("-cloud-demo"),
+           !FileManager.default.fileExists(atPath: directory.appendingPathComponent("poison-metric-seeded").path) {
+            let id = "B0000000-0000-4000-8000-000000000003"
+            var bad = metric; bad.metricId = id; bad.settleMs = 201
+            try JSONEncoder().encode(PendingMetric(towerID: towerID, metric: bad)).write(to: folder.appendingPathComponent(id + ".json"), options: .atomic)
+            try Data().write(to: directory.appendingPathComponent("poison-metric-seeded"), options: .atomic)
+        }
+        #endif
     }
     private func metricFiles() throws -> [URL] {
         let folder = directory.appendingPathComponent("metrics", isDirectory: true)
@@ -232,6 +289,75 @@ actor FirebaseTowerClient {
         guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
         return try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
+    private var quarantine: UploadQuarantine { UploadQuarantine(root: directory.appendingPathComponent("Held")) }
+    func heldStatus() -> HeldUploadStatus { quarantine.status() }
+    func retryHeld() throws { try quarantine.retry { kind in kind == "rolls" ? directory : directory.appendingPathComponent("metrics") } }
+    private func uploadEnabled() -> Bool { publishing }
+    nonisolated private static func permanent(_ error: Error) -> Bool {
+        if error is DecodingError { return true }
+        if let error = error as? CocoaError,
+           [.fileReadCorruptFile, .fileReadNoPermission, .fileReadTooLarge].contains(error.code) { return true }
+        if let error = error as? CloudError {
+            switch error {
+            case .database(let code): return [400,403,413,422].contains(code)
+            case .queuedIdentity, .acknowledgement: return true
+            default: return false
+            }
+        }
+        return false
+    }
+    private func hold(_ file: URL, kind: String, error: Error) throws {
+        let reason = "\(kind == "rolls" ? "Roll" : "Metric") \(file.deletingPathExtension().lastPathComponent.prefix(8)): \(error.localizedDescription)"
+        try quarantine.hold(file, kind: kind, reason: String(decoding: reason.utf16.prefix(180), as: UTF16.self))
+    }
+    private func sendRoll(_ file: URL, towerID: String) async throws {
+        let pending = try JSONDecoder().decode(Pending.self, from: Data(contentsOf: file))
+        guard pending.towerID == towerID else { throw CloudError.queuedIdentity }
+        var payload = try JSONSerialization.jsonObject(with: JSONEncoder().encode(pending.roll)) as! [String: Any]
+        payload["receivedAt"] = [".sv": "timestamp"]
+        let (data, code) = try await database("rolls/\(towerID)/\(pending.roll.eventId)", method: "PUT", body: JSONSerialization.data(withJSONObject: payload), createOnly: true)
+        if code == 412 {
+            let existing = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            guard existing?["eventId"] as? String == pending.roll.eventId else { throw CloudError.acknowledgement }
+        }
+        try FileManager.default.removeItem(at: file)
+    }
+    private func flushMetrics(towerID: String) async throws {
+        var records: [(URL, PendingMetric)] = []
+        for file in try metricFiles().prefix(100) {
+            guard publishing else { return }
+            do {
+                let pending = try JSONDecoder().decode(PendingMetric.self, from: Data(contentsOf: file))
+                guard pending.towerID == towerID else { throw CloudError.queuedIdentity }
+                records.append((file, pending))
+            } catch {
+                guard Self.permanent(error) else { throw error }
+                try hold(file, kind: "metrics", error: error)
+            }
+        }
+        guard publishing, !records.isEmpty else { return }
+        var batch: [String: Any] = [:]
+        for (_, pending) in records { batch[pending.metric.metricId] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(pending.metric)) }
+        do {
+            _ = try await database("metrics/\(towerID)", method: "PATCH", body: JSONSerialization.data(withJSONObject: batch))
+            for (file, _) in records { try FileManager.default.removeItem(at: file) }
+        } catch {
+            guard Self.permanent(error) else { throw error }
+            // One rejected metric rejects an atomic batch. Retry individually so
+            // good records are acknowledged and only the failing record is held.
+            for (file, pending) in records {
+                guard publishing else { return }
+                do {
+                    let single = [pending.metric.metricId: batch[pending.metric.metricId]!]
+                    _ = try await database("metrics/\(towerID)", method: "PATCH", body: JSONSerialization.data(withJSONObject: single))
+                    try FileManager.default.removeItem(at: file)
+                } catch {
+                    guard Self.permanent(error) else { throw error }
+                    try hold(file, kind: "metrics", error: error)
+                }
+            }
+        }
+    }
     func flush(towerID: String) async throws {
         let identity = try await authenticated()
         guard identity.uid == towerID else { throw CloudError.identity }
@@ -239,42 +365,27 @@ actor FirebaseTowerClient {
             _ = try await database("towers/\(towerID)", method: "PATCH", body: JSONSerialization.data(withJSONObject: ["updatedAt": [".sv": "timestamp"], "sharing": true]))
             lastHeartbeat = Date()
         }
-        for file in try pendingFiles() {
-            guard publishing else { return }
-            let pending = try JSONDecoder().decode(Pending.self, from: Data(contentsOf: file))
-            guard pending.towerID == towerID else { throw CloudError.identity }
-            var payload = try JSONSerialization.jsonObject(with: JSONEncoder().encode(pending.roll)) as! [String: Any]
-            payload["receivedAt"] = [".sv": "timestamp"]
-            let (data, code) = try await database("rolls/\(towerID)/\(pending.roll.eventId)", method: "PUT", body: JSONSerialization.data(withJSONObject: payload), createOnly: true)
-            if code == 412 {
-                // Conditional write returns the existing immutable record after a lost ACK.
-                let existing = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-                guard existing?["eventId"] as? String == pending.roll.eventId else { throw CloudError.database(412) }
-            }
-            try FileManager.default.removeItem(at: file)
-        }
-        guard publishing else { return }
-        let files = Array(try metricFiles().prefix(100))
-        if !files.isEmpty {
-            var batch: [String: Any] = [:]
-            for file in files {
-                let pending = try JSONDecoder().decode(PendingMetric.self, from: Data(contentsOf: file))
-                guard pending.towerID == towerID else { throw CloudError.identity }
-                batch[pending.metric.metricId] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(pending.metric))
-            }
-            // Every metric field is immutable, and identical retry batches are allowed.
-            _ = try await database("metrics/\(towerID)", method: "PATCH", body: JSONSerialization.data(withJSONObject: batch))
-            for file in files { try FileManager.default.removeItem(at: file) }
-        }
+        var rollError: Error?
+        do {
+            try await drainUploadFiles(try pendingFiles(), enabled: { await self.uploadEnabled() },
+                deliver: { try await self.sendRoll($0, towerID: towerID) }, permanent: { Self.permanent($0) },
+                hold: { try await self.hold($0, kind: "rolls", error: $1) })
+        } catch { rollError = error }
+        // Even a transient roll failure cannot prevent the metrics stream trying.
+        do { try await flushMetrics(towerID: towerID) }
+        catch { throw rollError ?? error }
+        if let rollError { throw rollError }
     }
     private enum CloudError: LocalizedError {
-        case configuration, authentication, keychain, identity, database(Int)
+        case configuration, authentication, keychain, identity, queuedIdentity, acknowledgement, database(Int)
         var errorDescription: String? {
             switch self {
             case .configuration: return "Firebase configuration is missing."
             case .authentication: return "Anonymous sign-in failed. Please try again."
             case .keychain: return "Could not save the tower identity securely."
             case .identity: return "This queued roll belongs to a different tower identity."
+            case .queuedIdentity: return "Saved upload belongs to another tower; original data retained."
+            case .acknowledgement: return "Server record did not acknowledge this event; original data retained."
             case .database(let status): return "Firebase request failed (\(status))."
             }
         }

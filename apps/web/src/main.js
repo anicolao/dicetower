@@ -94,6 +94,8 @@ function renderMetrics() {
   for(const [key,id] of [['inferenceMs','metric-inference'],['emaInferenceMs','metric-ema'],['processingMs','metric-processing'],['intervalMs','metric-interval']]) $(''+id).textContent=latest && (latest.inferenceCount>0 || key==='intervalMs') ? displayMs(latest[key]) : '—';
   $('metrics-summary').textContent=latest ? `${latest.inferenceCount} inferences · ${latest.agreementCount}/2 agree · ${latest.settleMs} ms settlement · Sample ${clock.format(latest.recordedAt)} · Session ${latest.sessionId.slice(-6)}` : 'New app builds publish timings separately from roll images.';
   $('metric-duplicates').textContent=latest?.duplicateCount==null?'—':String(latest.duplicateCount);
+  $('upload-summary').textContent=latest?.uploadHeldCount==null?'This build has not reported upload health.':latest.uploadHeldCount>0?`${latest.uploadHeldCount} uploads held on the phone · ${latest.uploadIssue} · Other uploads continue.`:'No uploads held on the phone.';
+  $('upload-summary').classList.toggle('upload-warning',(latest?.uploadHeldCount??0)>0);
   const duplicate=metricSamples.find(m=>m.sessionId===latest?.sessionId && m.duplicateDiscarded);
   $('duplicate-summary').textContent=latest?.duplicateCount==null?'This build has not reported duplicate metrics.':`${duplicate?`Latest visible discard: ${clock.format(duplicate.recordedAt)} · matches event ${duplicate.duplicateOfEventId.slice(-6)}.`:'No discard decisions in the recent sample window.'} Duplicate attempts stay out of the roll feed.`;
   $('metrics-samples').replaceChildren();

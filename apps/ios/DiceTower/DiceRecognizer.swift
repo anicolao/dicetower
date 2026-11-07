@@ -15,9 +15,9 @@ struct RecognizedDie: Identifiable, Sendable {
 
 struct RecognitionMetrics: Codable, Sendable {
     var schemaVersion = 1
-    let metricId: String
+    var metricId: String
     let sessionId: String
-    let recordedAt: Double
+    var recordedAt: Double
     let phase: String
     let inferenceMs: Double
     let emaInferenceMs: Double
@@ -26,11 +26,13 @@ struct RecognitionMetrics: Codable, Sendable {
     let inferenceCount: Int
     let agreementCount: Int
     var settleMs = 200
-    let eventId: String
+    var eventId: String
     // Optional so pre-upgrade metrics in the durable outbox decode/retry unchanged.
     var duplicateDiscarded: Bool?
     var duplicateCount: Int?
     var duplicateOfEventId: String?
+    var uploadHeldCount: Int?
+    var uploadIssue: String?
 }
 
 /// Fresh frames only, a single in-flight request, and no ML work while quiescent.

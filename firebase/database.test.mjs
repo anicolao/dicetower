@@ -80,3 +80,13 @@ check('malformed duplicate counts, links and states cannot pollute the stream',a
  for(const extra of [{duplicateCount:-1},{duplicateCount:.5},{duplicateCount:0},{duplicateOfEventId:''},{duplicateOfEventId:'x'.repeat(65)},{duplicateDiscarded:'yes'},{eventId:'e2'},{phase:'active'},{agreementCount:1}])await assertFails(set(ref(db('owner'),'metrics/owner/m1'),{...duplicate,...extra}));
  await assertFails(set(ref(db('owner'),'metrics/owner/m1'),{...metric(),duplicateCount:1}));
 });
+check('upload health is bounded, owner-only and immutable, while legacy metrics still work',async()=>{
+ await set(ref(db('owner'),'towers/owner'),profile);
+ const warning={...metric(),uploadHeldCount:2,uploadIssue:'Roll ABC: Firebase request failed (403).'};
+ await assertSucceeds(set(ref(db('owner'),'metrics/owner/m1'),warning));
+ await assertSucceeds(set(ref(db('owner'),'metrics/owner/m1'),warning));
+ await assertFails(update(ref(db('owner'),'metrics/owner/m1'),{uploadHeldCount:3}));
+ for(const extra of [{uploadHeldCount:-1},{uploadHeldCount:.5},{uploadIssue:'x'.repeat(201)},{uploadIssue:3}])await assertFails(set(ref(db('owner'),'metrics/owner/m2'),{...warning,metricId:'m2',...extra}));
+ await assertFails(set(ref(db('observer'),'metrics/owner/m2'),{...warning,metricId:'m2'}));
+ await assertFails(set(ref(db('owner'),'metrics/owner/m2'),{...metric('m2'),uploadHeldCount:1}));
+});

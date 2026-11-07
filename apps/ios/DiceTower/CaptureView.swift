@@ -326,6 +326,11 @@ private struct TowerSetupView: View {
                     Button(cloud.sharing ? "Stop sharing · keep captures local" : "Keep captures local") { cloud.keepLocal() }
                         .disabled(cloud.busy).accessibilityIdentifier("keep-local")
                     Text(cloud.status).font(.footnote)
+                    if cloud.heldUploads > 0 {
+                        Text("\(cloud.heldUploads) rejected or unreadable uploads are saved on this phone. Valid uploads continue. \(cloud.uploadIssue)").font(.footnote)
+                        Button("Retry held uploads") { Task { await cloud.retryHeldUploads() } }
+                            .accessibilityIdentifier("retry-held-uploads")
+                    }
                 }
                 Section("What is shared") {
                     Text("Anyone using the observer can see your tower name, timestamps, small camera thumbnails and experimental dice predictions. Full original photos stay on this phone. Queued rolls retry when the connection returns. Stopping sharing leaves the published history visible.")

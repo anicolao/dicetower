@@ -103,6 +103,7 @@ class MainActivity: ComponentActivity() {
             OutlinedTextField(name,{if(it.length<=60)name=it},label={Text("Tower name")},singleLine=true)
             Text("Sharing publishes your tower name, small camera thumbnails, experimental dice results and timing metrics to anonymous observers. Stopping sharing leaves existing history visible.",fontSize=12.sp)
             Text(cloud.status,fontSize=12.sp)
+            if(cloud.held>0)TextButton(onClick={model.cloud.retryHeld()}){Text("Retry held uploads (${cloud.held})")}
         }},confirmButton={TextButton(enabled=!cloud.busy && name.trim().isNotEmpty(),onClick={model.connect(name){showSharing=false}}){Text(if(cloud.busy)"Connecting…" else "Start sharing")}},dismissButton={TextButton(enabled=!cloud.busy,onClick={model.cloud.keepLocal();showSharing=false}){Text(if(cloud.sharing)"Stop sharing" else "Keep local")}})
     }
     if(showRegion)AlertDialog(onDismissRequest={showRegion=false},title={Text("Tray area")},text={Column {

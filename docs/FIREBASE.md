@@ -89,6 +89,12 @@ streams requires bounded indexed queries; direct authenticated reads of individu
 profiles/events support links and idempotent acknowledgments. The UI independently
 verifies exact face count and sum. No client supplies privileged credentials.
 
+## Upload recovery
+
+New builds isolate unreadable/rejected records without starving later rolls or
+metrics, preserve original bytes, and expose `uploadHeldCount` / `uploadIssue`
+in the metrics stream and observer. See [UPLOAD_RECOVERY.md](UPLOAD_RECOVERY.md).
+
 ## Develop and deploy
 
 ```sh

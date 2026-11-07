@@ -1,5 +1,7 @@
 # DiceTower Capture for iPhone
 
+Version 0.4.4 fixes upload queue blocking. Invalid records are preserved as held uploads while later rolls and metrics continue. The sharing screen and observer show upload health; see [upload recovery](../../docs/UPLOAD_RECOVERY.md). Recognition/arming are unchanged.
+
 Version 0.4.3 restores the original sensitive detection/arming sequence. After
 recognition, unchanged values/positions are discarded as duplicate reports and
 recorded in the Firebase metrics stream. The app and observer show a session

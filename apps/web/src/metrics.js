@@ -4,7 +4,9 @@ export function normalizeMetric(id, raw) {
   const keys=['duplicateDiscarded','duplicateCount','duplicateOfEventId'];
   const hasDuplicates=keys.some(k=>Object.hasOwn(raw,k));
   if(hasDuplicates && (!keys.every(k=>Object.hasOwn(raw,k)) || typeof raw.duplicateDiscarded!=='boolean' || !Number.isInteger(raw.duplicateCount) || raw.duplicateCount<0 || typeof raw.duplicateOfEventId!=='string' || raw.duplicateOfEventId.length>64 || (raw.duplicateDiscarded ? raw.duplicateCount<1 || !raw.duplicateOfEventId || raw.eventId!=='' || raw.phase!=='quiescent' || raw.agreementCount!==2 : raw.duplicateOfEventId!=='')))return null;
-  return {...raw, metricId:id,duplicateCount:hasDuplicates?raw.duplicateCount:null,duplicateDiscarded:raw.duplicateDiscarded??false,duplicateOfEventId:raw.duplicateOfEventId??''};
+  const hasUploads=Object.hasOwn(raw,'uploadHeldCount')||Object.hasOwn(raw,'uploadIssue');
+  if(hasUploads && (!Number.isInteger(raw.uploadHeldCount)||raw.uploadHeldCount<0||typeof raw.uploadIssue!=='string'||raw.uploadIssue.length>200))return null;
+  return {...raw, metricId:id,duplicateCount:hasDuplicates?raw.duplicateCount:null,duplicateDiscarded:raw.duplicateDiscarded??false,duplicateOfEventId:raw.duplicateOfEventId??'',uploadHeldCount:hasUploads?raw.uploadHeldCount:null,uploadIssue:raw.uploadIssue??''};
 }
 export function sortedMetrics(rows) {
   return Object.entries(rows||{}).map(([id,raw])=>normalizeMetric(id,raw)).filter(Boolean).sort((a,b)=>b.recordedAt-a.recordedAt || b.metricId.localeCompare(a.metricId));

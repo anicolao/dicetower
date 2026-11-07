@@ -1,5 +1,7 @@
 # DiceTower Android prototype
 
+Version 0.1.4 fixes upload queue blocking and adds held-upload recovery and diagnostics. See [the recovery policy](../../docs/UPLOAD_RECOVERY.md). Recognition/arming are unchanged.
+
 Version 0.1.3 restores the original sensitive detection/arming sequence and filters
 duplicate conclusions after recognition. The app and observer show a cumulative
 session discard count; each discarded reading produces a metrics sample linking

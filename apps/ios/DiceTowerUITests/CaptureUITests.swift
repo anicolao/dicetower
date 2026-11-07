@@ -40,7 +40,7 @@ import XCTest
     func testLiveFirebaseTowerRegistrationAndRollUpload() throws {
         guard ProcessInfo.processInfo.environment["DICETOWER_LIVE_QA"] == "1" else { throw XCTSkip("Live Firebase QA requires explicit opt-in.") }
         let app = XCUIApplication()
-        app.launchArguments = ["-capture-demo", "-recognition-noise-demo", "-cloud-demo", "-cloudTowerOnboarded", "NO"]
+        app.launchArguments = ["-capture-demo", "-recognition-noise-demo", "-cloud-demo", "-upload-poison-demo", "-cloudTowerOnboarded", "NO"]
         app.launch()
         let field = app.textFields["tower-name"]
         XCTAssertTrue(field.waitForExistence(timeout: 20))
@@ -48,7 +48,7 @@ import XCTest
         app.buttons["connect-tower"].tap()
         let status = app.buttons["tower-sharing"]
         XCTAssertTrue(status.waitForExistence(timeout: 40))
-        expectation(for: NSPredicate(format: "label CONTAINS %@", "Live"), evaluatedWith: status)
+        expectation(for: NSPredicate(format: "label CONTAINS %@ OR label CONTAINS %@", "Live", "held"), evaluatedWith: status)
         waitForExpectations(timeout: 40)
         let recognition = app.staticTexts["recognition-status"]
         expectation(for: NSPredicate(format: "label BEGINSWITH %@", "Quiescent"), evaluatedWith: recognition)
