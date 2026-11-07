@@ -16,7 +16,9 @@ def evaluate(root, path, cutoff=None, truth_manifest=None, suffix=''):
     if val:
         best,sweep=select_threshold(rows,val)
         output.update(cutoff=best['cutoff'],validation=best,validationSweep=sweep)
-    if cutoff is not None:output['cutoff']=cutoff
+    if cutoff is not None:
+        output['cutoff']=cutoff
+        if val:output['validation']={'cutoff':cutoff,**metrics(rows,val,cutoff)}
     if test:
         if 'cutoff' not in output:raise ValueError('Test-only evaluation needs frozen cutoff')
         output['test']=metrics(rows,test,output['cutoff'])

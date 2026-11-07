@@ -11,6 +11,15 @@ Quarter rotations and exposure/contrast perturbations apply only to training.
 All images share a capture session, so test results describe within-session
 generalization. Keep collecting separate sessions, dice sets, and varied counts.
 
+For addition/removal sequences, use `--sequence-aware` and supply visually
+identified sequences with `--groups-json FILE` (a JSON list of capture-index
+lists). Retained dice can leak between partitions even when the count differs.
+`--crop LEFT TOP RIGHT BOTTOM` sets fixed tray geometry in a 900×1200 reference
+frame. Freeze it before model comparisons and use the same preprocessing on both
+sides. `DICETOWER_EVAL_SPLIT=all` runs the native predictor on every manifest row
+for an explicitly requested pre-training baseline; post-training whole-dataset
+accuracy would include training examples and must not be called held-out accuracy.
+
 The selected historical model is the native Create ML six-class TinyYOLO export
 from its 6,000-iteration checkpoint. Create ML's public `MLObjectDetector` APIs
 cannot initialize a new dataset from those custom weights. `warmstart.py` loads
@@ -21,6 +30,13 @@ statistics remain frozen. This is a weight fine-tune of the existing detector;
 it does not substitute a different model architecture. Exports replace weights
 inside the original Core ML graph, preserving decoding, class labels, and NMS.
 No PyTorch-to-Core-ML graph conversion is involved.
+
+For incremental training, supply the actual previous model with `--initial`.
+`--cutoff .75` preserves an established confidence setting instead of selecting a
+new one. The unchanged model is eligible at step zero; a worse validation result
+does not automatically replace it. `--unfreeze` chooses the first trainable
+convolution index, and `--lr` controls the update rate. Native Vision validation
+must confirm the exported candidate before freezing it for test evaluation.
 
 ```sh
 python3 -m venv local-models/rig-venv

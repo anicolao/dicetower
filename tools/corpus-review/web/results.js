@@ -5,7 +5,7 @@ const svg=(tag,attrs)=>{const e=document.createElementNS(NS,tag);Object.entries(
 const percent=v=>`${(v*100).toFixed(1)}%`;
 function visible(){return model.captures.filter(c=>$('#filter').value==='all'||(c.metrics.exactLocalized? 'pass':'fail')===$('#filter').value);}
 function renderList(){
- const s=model.summary;$('#summary').innerHTML=`<strong>${s.exactLocalizedScenes}/${s.scenes} photos fully correct</strong> · ${s.scenes-s.exactLocalizedScenes} failures<br>${s.truePositiveFaces50}/50 correct face values · ${s.exactCounts}/${s.scenes} correct counts`;
+ const s=model.summary,totalFaces=model.captures.reduce((n,c)=>n+c.dice.length,0);$('#summary').innerHTML=`<strong>${s.exactLocalizedScenes}/${s.scenes} photos fully correct</strong> · ${s.scenes-s.exactLocalizedScenes} failures<br>${s.truePositiveFaces50}/${totalFaces} correct face values · ${s.exactCounts}/${s.scenes} correct counts`;
  $('#list').innerHTML=visible().map(c=>`<button class="capture ${current?.id===c.id?'active':''}" data-id="${c.id}"><img loading="lazy" src="/images/${c.id}/preview.jpg" alt=""><span><strong>Capture ${c.index}</strong><small class="${c.metrics.exactLocalized?'pass':'fail'}">${c.metrics.exactLocalized?'Pass':'Fail'}</small><small>${c.predictions.length} predicted / ${c.dice.length} actual</small></span></button>`).join('')||'<p class="help">No photos in this filter.</p>';
  document.querySelectorAll('.capture').forEach(e=>e.onclick=()=>load(e.dataset.id));
 }
@@ -47,7 +47,7 @@ function renderFaces(){
 }
 function crops(){if(!image.complete||!image.naturalWidth||!image.src.includes(current.id))return;document.querySelectorAll('canvas.crop').forEach(canvas=>{const i=Number(canvas.dataset.index),box=canvas.dataset.box==='truth'?current.dice[i].box:current.predictions[i].box;const[x,y,w,h]=box,side=Math.max(w,h)*1.4,ctx=canvas.getContext('2d');ctx.fillStyle='#152018';ctx.fillRect(0,0,240,240);ctx.drawImage(image,x+w/2-side/2,y+h/2-side/2,side,side,0,0,240,240);});}
 function select(i){selected=i;renderBoxes();renderFaces();}
-function choose(){if(!canLeave()){$('#model').value=model.id;$('#filter').value=lastFilter;return;}model=data.models.find(m=>m.id===$('#model').value);const rows=visible();const id=rows.some(c=>c.id===current?.id)?current.id:rows[0]?.id;if(id)load(id);else renderList();}
+function choose(){if(!canLeave()){$('#model').value=model.id;$('#filter').value=lastFilter;return;}model=data.models.find(m=>m.id===$('#model').value);if(!visible().length)$('#filter').value='all';const rows=visible();const id=rows.some(c=>c.id===current?.id)?current.id:rows[0]?.id;if(id)load(id);else renderList();}
 function next(step){const rows=visible(),i=rows.findIndex(c=>c.id===current.id);if(rows[i+step])load(rows[i+step].id);}
 $('#model').onchange=choose;$('#filter').onchange=choose;$('#prev').onclick=()=>next(-1);$('#next').onclick=()=>next(1);
 $('#note').oninput=()=>{noteDirty=true;$('#saved').textContent='Unsaved';};
@@ -55,4 +55,4 @@ $('#saveNote').onclick=async()=>{const id=current.id;$('#saveNote').disabled=tru
 $('#truth').onchange=renderBoxes;$('#predicted').onchange=renderBoxes;$('#frame').onclick=()=>{full=!full;frame();};$('#zoom').onclick=()=>{$('#well').classList.toggle('large');$('#zoom').textContent=$('#well').classList.contains('large')?'Fit view':'Enlarge';};
 window.onbeforeunload=e=>{if(noteDirty){e.preventDefault();e.returnValue='';}};
 document.onkeydown=e=>{if(['SELECT','INPUT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='ArrowRight')next(1);if(e.key==='ArrowLeft')next(-1);};
-fetch('/api/results').then(r=>{if(!r.ok)throw Error('Could not load frozen test results');return r.json();}).then(d=>{data=d;$('.locked').textContent=data.truthVersion>1?`Audited labels v${data.truthVersion} · saved predictions`:'Frozen test · read only';model=d.models[0];const id=location.hash.slice(1);const wanted=model.captures.find(c=>c.id===id);if(wanted&&wanted.metrics.exactLocalized)$('#filter').value='all';load(wanted?.id||visible()[0].id);}).catch(e=>{$('section').textContent=e.message;});
+fetch('/api/results').then(r=>{if(!r.ok)throw Error('Could not load frozen test results');return r.json();}).then(d=>{data=d;$('.locked').textContent=data.truthVersion>1?`Audited labels v${data.truthVersion} · saved predictions`:'Frozen test · read only';model=d.models[0];const id=location.hash.slice(1);const wanted=model.captures.find(c=>c.id===id);if((wanted&&wanted.metrics.exactLocalized)||!visible().length)$('#filter').value='all';load(wanted?.id||visible()[0].id);}).catch(e=>{$('section').textContent=e.message;});

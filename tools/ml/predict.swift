@@ -12,6 +12,7 @@ let manifest = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appe
 let requestedSplit = ProcessInfo.processInfo.environment["DICETOWER_EVAL_SPLIT"]
 let rows = (manifest["rows"] as! [[String: Any]]).filter {
     let split = $0["split"] as! String
+    if requestedSplit == "all" { return true }
     return split != "train" && (requestedSplit == nil || split == requestedSplit!)
 }
 let start = Date()

@@ -220,6 +220,7 @@ def train_loss(raw,targets,anchors):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--root',type=Path,default=Path('local-models/rig-2026-11-06'));p.add_argument('--initial',type=Path,default=Path('local-models/prototype-2026-11-06/DiceTowerD6.mlmodel'));p.add_argument('--steps',type=int,default=1200);p.add_argument('--name',default='warm-last3');p.add_argument('--lr',type=float,default=.0001);p.add_argument('--unfreeze',type=int,default=6)
+    p.add_argument('--cutoff',type=float,help='Freeze a pre-existing inference cutoff instead of tuning it on validation')
     args=p.parse_args();root=args.root;run=root/'runs'/args.name;run.mkdir(parents=True,exist_ok=False)
     random.seed(20261106);np.random.seed(20261106);torch.manual_seed(20261106);torch.set_num_threads(6)
     manifest=json.loads((root/'manifest.json').read_text());val=[r for r in manifest['rows'] if r['split']=='validation']
@@ -228,6 +229,7 @@ def main():
     verify_parity(model,first,run/'parity.json')
     device='mps' if torch.backends.mps.is_available() else 'cpu';model.to(device)
     baseline=predict(model,root,val,device);baseline_best,baseline_sweep=select_threshold(val,baseline)
+    if args.cutoff is not None:baseline_best={'cutoff':args.cutoff,**metrics(val,baseline,args.cutoff)}
     (run/'baseline-validation.json').write_text(json.dumps({'rows':baseline,'best':baseline_best,'sweep':baseline_sweep},indent=2))
     log(f"Unchanged historical weights: {baseline_best['exactValueSets']}/{len(val)} exact validation scenes, F1 {baseline_best['f1_50']:.3f}")
     training=json.loads((root/'data'/'train'/'annotations.json').read_text())
@@ -236,7 +238,8 @@ def main():
         enabled=name.startswith('conv') and int(name.split('_')[0][4:])>=args.unfreeze
         for parameter in op.parameters():parameter.requires_grad=enabled
     optimizer=torch.optim.AdamW([p for p in model.parameters() if p.requires_grad],lr=args.lr,weight_decay=.0001)
-    best_key=(-1,-1);best_info=None;start=time.monotonic();history=[]
+    best_key=(baseline_best['exactValueSets'],baseline_best['f1_50']);best_info={'step':0,'metrics':baseline_best,'cutoff':baseline_best['cutoff'],'run':args.name};start=time.monotonic();history=[]
+    model.export(run/'DiceTowerD6.mlmodel');torch.save(model.state_dict(),run/'best.pt');(run/'selected.json').write_text(json.dumps(best_info,indent=2))
     recipe={**vars(args),'root':str(root),'initial':str(args.initial),'startedAt':now(),'device':device,'initialSHA256':hashlib.sha256(args.initial.read_bytes()).hexdigest(),'manifestSHA256':hashlib.sha256((root/'manifest.json').read_bytes()).hexdigest(),'frozenBatchNormStatistics':True,'optimizer':'AdamW','batchSize':8,'selection':'validation exact value sets, then class-correct localization F1; no test-set predictions during training'}
     (run/'recipe.json').write_text(json.dumps(recipe,indent=2,default=str))
     for step in range(1,args.steps+1):
@@ -252,6 +255,7 @@ def main():
         if step%25==0:log(f"step {step}/{args.steps}, loss {loss.item():.4f}, elapsed {time.monotonic()-start:.0f}s")
         if step%100==0 or step==args.steps:
             preds=predict(model,root,val,device);best,sweep=select_threshold(val,preds)
+            if args.cutoff is not None:best={'cutoff':args.cutoff,**metrics(val,preds,args.cutoff)}
             record={'step':step,'elapsedSeconds':time.monotonic()-start,'loss':loss.item(),'metrics':best}
             history.append(record);(run/'history.json').write_text(json.dumps(history,indent=2))
             log(f"validation step {step}: {best['exactValueSets']}/{len(val)} exact, counts {best['exactCounts']}, F1 {best['f1_50']:.3f}, cutoff {best['cutoff']}")
