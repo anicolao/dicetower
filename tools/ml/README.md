@@ -65,6 +65,16 @@ reason in `selection.json` before opening test predictions. `evaluate_rig.py`
 requires that file before reporting test scores. Do not tune a checkpoint or
 threshold on test failures; collect a new held-out set for the next iteration.
 
+Owner-confirmed truth corrections can be scored without new inference or
+overwriting the original evaluation:
+
+```sh
+local-models/rig-venv/bin/python tools/ml/evaluate_rig.py saved-test-predictions.json --root EXPERIMENT --cutoff FROZEN_CUTOFF --truth-manifest AUDITED_MANIFEST --suffix=-audited-v2
+```
+
+Preserve the original manifest and selection hash, record confirmation provenance
+and the new manifest hash, and identify the truth version when reporting results.
+
 ```sh
 local-models/rig-venv/bin/python -m unittest discover -s tools/ml -p 'test_*.py'
 ```

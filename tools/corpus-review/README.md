@@ -17,6 +17,12 @@ separately under the experiment's `review-notes/` directory. Pending visual labe
 findings can be supplied in `review-findings.json`; neither notes nor findings
 change the frozen scores. Unsaved notes prompt before leaving a photo.
 
+After an explicitly confirmed label correction, `truth-audit.json` can select a
+versioned audited manifest and separately named re-scored metrics. The viewer
+verifies both original and corrected manifest hashes, displays the truth version,
+and keeps the original evaluation files intact. Saved model predictions,
+confidence thresholds, and model weights do not change during a truth audit.
+
 ## Label approval
 
 Review the November 6 iOS capture session at **http://127.0.0.1:8765**.

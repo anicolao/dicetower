@@ -26,7 +26,7 @@ function load(id){
  const wrong=current.matches.filter(m=>!m.correctValue).length;
  const parts=[];if(wrong)parts.push(`${wrong} face-value mismatch${wrong===1?'':'es'}`);if(current.extraPredictions.length)parts.push(`${current.extraPredictions.length} extra detection${current.extraPredictions.length===1?'':'s'}`);if(current.missedTruth.length)parts.push(`${current.missedTruth.length} missed face${current.missedTruth.length===1?'':'s'}`);
  $('#explanation').textContent=parts.length?parts.join(' · ')+'. Matches use box overlap (IoU ≥ 0.5), independent of face value.':'Every face has a correctly valued prediction overlapping its approved box. No extra detections.';
- $('#settings').textContent=`Frozen cutoff ${model.cutoff.toFixed(2)} · NMS IoU ${data.nmsIoU.toFixed(2)}. Confidence = object confidence × class confidence. This viewer reads saved results and never changes labels, thresholds, or metrics.`;
+ $('#settings').textContent=`Truth version ${data.truthVersion||1} · Frozen cutoff ${model.cutoff.toFixed(2)} · NMS IoU ${data.nmsIoU.toFixed(2)}. Confidence = object confidence × class confidence. Saved model predictions and thresholds are unchanged.`;
  $('#findings').textContent=data.labelFindings[id]?.note||'';$('#findings').className=data.labelFindings[id]?'finding':'';
  $('#note').value=data.reviewNotes[id]?.note||'';$('#saved').textContent='';noteDirty=false;lastFilter=$('#filter').value;$('aside').scrollTop=0;
  frame();renderList();renderBoxes();renderFaces();
@@ -55,4 +55,4 @@ $('#saveNote').onclick=async()=>{const id=current.id;$('#saveNote').disabled=tru
 $('#truth').onchange=renderBoxes;$('#predicted').onchange=renderBoxes;$('#frame').onclick=()=>{full=!full;frame();};$('#zoom').onclick=()=>{$('#well').classList.toggle('large');$('#zoom').textContent=$('#well').classList.contains('large')?'Fit view':'Enlarge';};
 window.onbeforeunload=e=>{if(noteDirty){e.preventDefault();e.returnValue='';}};
 document.onkeydown=e=>{if(['SELECT','INPUT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='ArrowRight')next(1);if(e.key==='ArrowLeft')next(-1);};
-fetch('/api/results').then(r=>{if(!r.ok)throw Error('Could not load frozen test results');return r.json();}).then(d=>{data=d;model=d.models[0];const id=location.hash.slice(1);const wanted=model.captures.find(c=>c.id===id);if(wanted&&wanted.metrics.exactLocalized)$('#filter').value='all';load(wanted?.id||visible()[0].id);}).catch(e=>{$('section').textContent=e.message;});
+fetch('/api/results').then(r=>{if(!r.ok)throw Error('Could not load frozen test results');return r.json();}).then(d=>{data=d;$('.locked').textContent=data.truthVersion>1?`Audited labels v${data.truthVersion} · saved predictions`:'Frozen test · read only';model=d.models[0];const id=location.hash.slice(1);const wanted=model.captures.find(c=>c.id===id);if(wanted&&wanted.metrics.exactLocalized)$('#filter').value='all';load(wanted?.id||visible()[0].id);}).catch(e=>{$('section').textContent=e.message;});

@@ -46,6 +46,14 @@ def load_results(root):
     manifest = load('manifest.json')
     if hashlib.sha256((root/'manifest.json').read_bytes()).hexdigest() != selection['manifestSHA256']:
         raise ValueError('Frozen manifest hash mismatch')
+    audit = load('truth-audit.json') if (root/'truth-audit.json').exists() else None
+    if audit:
+        if audit['baseManifestSHA256'] != selection['manifestSHA256']:
+            raise ValueError('Label audit does not refer to the frozen dataset')
+        audited = root/audit['manifest']
+        if hashlib.sha256(audited.read_bytes()).hexdigest() != audit['manifestSHA256']:
+            raise ValueError('Audited manifest hash mismatch')
+        manifest = json.loads(audited.read_text())
     truth = {row['id']: row for row in manifest['rows'] if row['split'] == 'test'}
     models = []
     for ident, title, filename, cutoff in [
@@ -53,7 +61,7 @@ def load_results(root):
         ('baseline', 'Existing model', 'baseline-native-test', selection['baselineConfidenceThreshold'])
     ]:
         predictions = load(filename+'.json')['rows']
-        metrics = load(filename+'-metrics.json')
+        metrics = load(filename+(audit['metricsSuffix'] if audit else '')+'-metrics.json')
         assert metrics['cutoff'] == cutoff
         assert {p['id'] for p in predictions} == set(truth)
         per_scene = {row['id']: row for row in metrics['test']['perScene']}
@@ -67,6 +75,7 @@ def load_results(root):
                              **associate(row['dice'], retained)})
         models.append({'id': ident, 'title': title, 'cutoff': cutoff, 'summary': metrics['test'], 'captures': captures})
     return {'models': models, 'frozenAt': selection['frozenAt'], 'nmsIoU': selection['nmsIoU'],
+            'truthVersion': audit['version'] if audit else 1,
             'labelFindings': load('review-findings.json') if (root/'review-findings.json').exists() else {},
             'description': 'Frozen native Vision results. Green = approved truth; red = model. No new inference or threshold tuning.'}
 
