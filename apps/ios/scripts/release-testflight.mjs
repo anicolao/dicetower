@@ -10,14 +10,21 @@ const ios=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const repo=path.resolve(ios,'../..');
 const developer=process.env.DICETOWER_XCODE_DEVELOPER_DIR||'/Applications/Xcode.app/Contents/Developer';
 const c=configuration();
-const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.0';
+const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.1';
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 async function command(program,args,log) {
   const fd=fs.openSync(log,'a');
   try {
     await new Promise((resolve,reject)=>{
-      const child=spawn(program,args,{cwd:repo,env:{...process.env,DEVELOPER_DIR:developer},stdio:['ignore',fd,fd]});
+      // Xcode must use Apple's linker, not a linker exposed by a Nix shell.
+      const appleTool=program.startsWith(developer+'/') || program==='/usr/bin/codesign';
+      const environment={...process.env,DEVELOPER_DIR:developer};
+      if(appleTool) {
+        environment.PATH='/usr/bin:/bin:/usr/sbin:/sbin';
+        for(const name of ['CC','CXX','LD','LDPLUSPLUS','AR','AS','NM','RANLIB','STRIP','SDKROOT'])delete environment[name];
+      }
+      const child=spawn(program,args,{cwd:repo,env:environment,stdio:['ignore',fd,fd]});
       child.once('error',reject);
       child.once('exit',code=>code===0?resolve():reject(new Error(`${path.basename(program)} exited ${code}; inspect ${log}`)));
     });
@@ -88,7 +95,7 @@ async function main() {
   const testerID=await assignTester(group.id);
   const testers=await request('GET',`/v1/betaGroups/${group.id}/betaTesters?limit=200`);
   if(!testers.data.some(t=>t.id===testerID))throw new Error('Apple did not confirm internal tester membership.');
-  const notes='Faster recognition: fixed 200ms settlement and two agreeing still-frame inferences before reporting. Model inference time is measured for every request; an EMA (alpha 0.2) sets the next target interval, rounded up to 50ms multiples. After reporting, ML stays idle until motion resumes. The camera view shows last inference time, EMA, frame-processing time, target cadence, inference count, agreement and idle/active state. When sharing is enabled, timings publish to a separate Firebase metrics stream, with batched durable retries. The new web metrics panel is available in the PR preview. Saved-photo settling remains independently configurable. The recognition model is unchanged.';
+  const notes='Fix repeated reports of stationary dice: a new roll now requires at least 150ms of sustained spatial movement. Isolated noisy frames, uniform brightness changes, slow exposure drift and camera-frame gaps do not rearm an already reported scene. An unsettled frame still invalidates in-progress recognition immediately. Settlement remains 200ms with two agreeing inferences; the adaptive timing display and Firebase streams are unchanged. Please check that leaving dice untouched produces only one report, and that rolling the same values again still produces a new roll. The recognition model and saved-photo capture policy are unchanged.';
   const localizations=await request('GET',`/v1/builds/${build.id}/betaBuildLocalizations`);
   if(!localizations.data.length)await request('POST','/v1/betaBuildLocalizations',{data:{type:'betaBuildLocalizations',attributes:{locale:'en-CA',whatsNew:notes},relationships:{build:{data:{type:'builds',id:build.id}}}}});
   const detail=await request('GET',`/v1/builds/${build.id}/buildBetaDetail`);

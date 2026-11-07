@@ -60,10 +60,11 @@ class RecognitionEngine(context: Context,private val onRoll: (JSONObject)->Unit,
     fun observeMotion(pixels: ByteArray,time: Double) {
         val sample=synchronized(guard) {
             if(phase=="paused")return
-            if(scene.observe(pixels,time)) {
+            val newRoll=scene.observe(pixels,time)
+            if(newRoll || (scene.invalidated && phase=="active")) {
                 generation++;cycle.reset();latest=null;scheduled=false;lastUsed=Double.NEGATIVE_INFINITY
-                phase="active";rollId=UUID.randomUUID().toString()
-                _ui.value=_ui.value.copy(faces=emptyList(),timing=timing(),message="Movement detected")
+                if(newRoll){phase="active";rollId=UUID.randomUUID().toString()}
+                _ui.value=_ui.value.copy(faces=emptyList(),timing=timing(),message=if(newRoll)"Movement detected" else "Waiting for dice to settle…")
                 metric()
             } else null
         }

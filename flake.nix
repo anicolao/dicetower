@@ -60,7 +60,7 @@
         export-android-model = { type = "app"; program = "${t.exportModel}/bin/dicetower-export-android-model"; };
       });
       devShells = each (system: let t = tools system; shell = sdk: t.pkgs.mkShell {
-        packages = [ sdk t.pkgs.jdk17 t.pkgs.gradle t.pkgs.uv t.pkgs.python312 t.pkgs.git t.pkgs.gh t.pkgs.curl t.pkgs.jq t.pkgs.unzip t.pkgs.firebase-tools ];
+        packages = [ sdk t.pkgs.jdk17 t.pkgs.gradle t.pkgs.uv t.pkgs.python312 t.pkgs.git t.pkgs.gh t.pkgs.curl t.pkgs.jq t.pkgs.unzip t.pkgs.firebase-tools t.pkgs.nodejs_24 ];
         shellHook = t.environment sdk;
       }; in { default = shell t.sdk; android-emulator = shell (t.sdkFor true); model-export = t.pkgs.mkShell { packages = [ t.pkgs.uv t.pkgs.python312 ]; }; });
     };

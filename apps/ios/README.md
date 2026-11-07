@@ -1,5 +1,10 @@
 # DiceTower Capture for iPhone
 
+Version 0.4.1 fixes repeated rolls from stationary scenes. Rearming now requires
+150 ms of sustained spatial motion; isolated frame disturbances, uniform exposure
+changes and frame gaps leave a reported scene idle. Recognition still settles in
+200 ms and requires two agreements. Photo capture behavior is unchanged.
+
 Version 0.4 adds fixed 200 ms recognition settlement, two agreeing inferences, an adaptive 50 ms cadence and visible timing metrics. After reporting, ML sleeps until motion resumes. Timing samples publish to their own Firebase stream when sharing is enabled; see [the timing and preview guide](../../docs/FIREBASE.md#fast-recognition-and-the-metrics-stream-04).
 
 Version 0.3 added named-tower sharing through Firebase and the [web observer](https://anicolao.github.io/dicetower/). Name your tower on first launch and enable sharing to publish roll thumbnails and predictions, or keep capture local. The sharing row controls naming and uploads; published history stays visible after sharing stops. See [the Firebase guide](../../docs/FIREBASE.md).

@@ -29,18 +29,44 @@ class RecognitionCoreTest {
         assertTrue(RecognitionCycle.matches(listOf(face(3),face(4,.7)),listOf(face(4,.7),face(3))))
         assertFalse(RecognitionCycle.matches(listOf(face(3)),listOf(face(3,.3))))
     }
-    @Test fun settlementIs200msAndMotionRearmsImmediately() {
+    @Test fun settlementIs200msAndOneDisturbanceDoesNotRearm() {
         val scene=SceneMonitor();val quiet=ByteArray(96*128){30}
         for(t in listOf(0.0,.05,.1,.15,.199)){assertFalse(scene.observe(quiet,t));assertFalse(scene.still)}
         assertFalse(scene.observe(quiet,.2));assertTrue(scene.still)
-        assertTrue(scene.observe(ByteArray(96*128){200.toByte()},.25));assertFalse(scene.still)
+        assertFalse(scene.observe(motionFrame(12),.25));assertFalse(scene.still);assertTrue(scene.invalidated)
     }
     @Test fun cameraGapRestartsTheWindowAndSmallMotionIsNotDiluted() {
         val scene=SceneMonitor();val quiet=ByteArray(96*128){30}
         scene.observe(quiet,0.0);scene.observe(quiet,.1);scene.observe(quiet,.2)
-        assertTrue(scene.observe(quiet,2.0));assertFalse(scene.still)
+        assertFalse(scene.observe(quiet,2.0));assertFalse(scene.still);assertTrue(scene.invalidated)
         val moved=quiet.copyOf();for(y in 12..19)for(x in 12..19)moved[y*96+x]=220.toByte()
         assertTrue(SceneMonitor.difference(moved,quiet)>.012)
+    }
+    private fun motionFrame(patch: Int?=null,value: Byte=30)=ByteArray(96*128){value}.also { pixels ->
+        if(patch!=null)for(y in 24 until 36)for(x in patch until patch+12)pixels[y*96+x]=220.toByte()
+    }
+    private fun settledScene()=SceneMonitor().also { scene -> for(i in 0..4)scene.observe(motionFrame(),i*.05) }
+    @Test fun isolatedSpikesAndBrightnessDriftNeverAccumulateIntoANewRoll() {
+        val scene=settledScene()
+        for(i in 5..100)assertFalse(scene.observe(motionFrame(if(i%10==0)12 else null),i*.05))
+        for(i in 101..150)assertFalse(scene.observe(motionFrame(value=if(i%2==0)40 else 90),i*.05))
+        for(i in 151..250)assertFalse(scene.observe(motionFrame(value=(i-100).toByte()),i*.05))
+    }
+    @Test fun sustainedSpatialMovementRearmsOnceAndCanRearmAgainAfterSettlement() {
+        val scene=settledScene();var rolls=0
+        for(i in 0..7){val moved=scene.observe(motionFrame(12+(i%5)*12),.25+i*.05);if(i<3)assertFalse(moved);if(moved)rolls++}
+        assertEquals(1,rolls)
+        for(i in 0..5)assertFalse(scene.observe(motionFrame(),.65+i*.05))
+        assertTrue(scene.still)
+        for(i in 0..5)if(scene.observe(motionFrame(12+i*12),1.0+i*.05))rolls++
+        assertEquals(2,rolls)
+    }
+    @Test fun cameraGapBreaksConsecutiveMovementEvidence() {
+        val scene=settledScene()
+        assertFalse(scene.observe(motionFrame(12),.25))
+        assertFalse(scene.observe(motionFrame(24),2.0));assertTrue(scene.invalidated)
+        assertFalse(scene.observe(motionFrame(36),2.05))
+        for(i in 1..10)assertFalse(scene.observe(motionFrame(),2.05+i*.05))
     }
     @Test fun rotationSamplingUsesTheUprightCropCoordinates() {
         assertEquals(1 to 2,sensorPoint(1,2,4,3,0))

@@ -128,10 +128,20 @@ Two consecutive still-frame results must agree on face values, count and positio
 (centers within 0.025 normalized units, independent of detection ordering). A
 mismatch restarts agreement at one. Motion invalidates both pending work and the
 candidate. After the second agreeing result, the app reports once and becomes
-**quiescent**: it stops ML requests and timing samples until motion, a settings
+**quiescent**: it stops ML requests and timing samples until confirmed motion, a settings
 change, an explicit sharing setup, or camera restart rearms it. Empty detections
 can agree too; they remain an experimental zero-dice observation. New builds do
 not continuously revise a motionless, already-reported scene.
+
+In iOS 0.4.1 / Android 0.1.1, rearming requires at least 150 ms of consecutive
+spatial motion observations. The motion score removes a uniform luminance offset;
+raw image differences still govern the 200 ms settlement window. A single noisy
+frame, slow exposure drift, or a camera-frame gap can invalidate an in-progress
+reading but cannot create a new roll or wake an already-reported scene. Gaps
+break accumulated motion evidence. A genuine observed movement episode can report
+the same values again. A roll entirely hidden by a camera gap cannot be verified;
+returning to the app or explicitly restarting recognition still starts a fresh
+observation. Photo capture retains its separate stillness/invalidation policy.
 
 Each completed Vision request is timed using monotonic system uptime. Its EMA is
 initialized from the first measurement and updated as `0.2 * last + 0.8 * EMA`.

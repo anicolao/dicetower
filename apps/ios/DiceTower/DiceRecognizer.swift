@@ -65,8 +65,10 @@ final class DiceRecognizer: ObservableObject, @unchecked Sendable {
                            processingMs: cycle.processingMs, intervalMs: cycle.intervalMs, inferenceCount: cycle.inferenceCount,
                            agreementCount: cycle.agreementCount, eventId: eventID)
     }
-    func reset(_ message: String = "Waiting for dice to settle…", newRoll: Bool = false, phase: String = "active") {
-        lock.lock(); generation += 1; cycle.reset(); self.phase = phase
+    func reset(_ message: String = "Waiting for dice to settle…", newRoll: Bool = false, phase: String = "active", onlyIfActive: Bool = false) {
+        lock.lock()
+        if onlyIfActive && self.phase != "active" { lock.unlock(); return }
+        generation += 1; cycle.reset(); self.phase = phase
         latest = nil; lastUsedTimestamp = -.infinity; scheduled = false
         let sample = snapshot()
         if newRoll { queue.async { self.eventGate.moved() } }

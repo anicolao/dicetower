@@ -11,7 +11,7 @@ import DiceCaptureCore
 final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     let session = AVCaptureSession()
     let recognizer = DiceRecognizer()
-    private var recognitionMotion = QuiescenceDetector(parameters: .init(settleDuration: 0.2))
+    private var recognitionMotion = RecognitionMotionMonitor()
     private var recognitionStill = false
     private let queue = DispatchQueue(label: "org.boardgamescafe.dicetower.camera", qos: .userInitiated)
     private let photoOutput = AVCapturePhotoOutput()
@@ -218,12 +218,11 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
         lastFrameTime = timestamp
         lastFrameArrival = ProcessInfo.processInfo.systemUptime
         let recognitionObservation = recognitionMotion.observe(frame, at: timestamp)
-        if recognitionObservation.shouldCapture {
-            recognitionStill = true
-        } else if recognitionStill && !recognitionMotion.pendingCaptureIsValid {
-            recognitionMotion.reset()
-            recognitionStill = false
+        recognitionStill = recognitionObservation.still
+        if recognitionObservation.newRoll {
             recognizer.reset(newRoll: true)
+        } else if recognitionObservation.invalidated {
+            recognizer.reset(onlyIfActive: true)
         }
         guard runningAuto || pending?.trigger == "automatic" else { return }
         let observation = detector.observe(frame, at: timestamp)
@@ -343,12 +342,23 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
                 guard let self else { return }
                 self.demoTick += 1
                 if self.demoMotionTicks > 0 { self.demoMotionTicks -= 1 }
+                let noiseDemo = ProcessInfo.processInfo.arguments.contains("-recognition-noise-demo") && self.demoTick > 30
+                // Debug-only regression trace: unchanged photo, exposure drift,
+                // isolated spatial spikes and a 700ms camera gap.
+                if noiseDemo && self.demoMotionTicks == 0 && self.demoTick % 80 >= 60 && self.demoTick % 80 < 74 { return }
                 let image = self.demoPhoto()
                 DispatchQueue.main.async { self.demoImage = UIImage(data: image) }
                 var pixels = [UInt8](repeating: 22, count: 96 * 128)
                 let offset = self.demoMotionTicks > 0 ? (self.demoTick % 2) * 20 : 0
                 let x = 20 + (self.demoArrangement % 3) * 10 + offset
                 for y in 45..<61 { for xx in x..<min(x + 16, 96) { pixels[y * 96 + xx] = 220 } }
+                if noiseDemo {
+                    let brightness = (self.demoTick / 10) % 10
+                    pixels = pixels.map { UInt8(Int($0) + brightness) }
+                    if self.demoMotionTicks == 0 && self.demoTick % 20 == 0 {
+                        for y in 12..<24 { for xx in 12..<24 { pixels[y * 96 + xx] = 220 } }
+                    }
+                }
                 let time = ProcessInfo.processInfo.systemUptime
                 self.process(AnalysisFrame(width: 96, height: 128, pixels: pixels), at: time)
                 if let ci = CIImage(data: image) { self.recognizer.submit(ci, region: self.region, still: self.recognitionStill, timestamp: time) }
