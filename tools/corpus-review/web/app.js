@@ -112,4 +112,4 @@ async function save(status,advance=false){
 $('#approve').onclick=()=>save('approved',true);$('#save').onclick=()=>save('pending');$('#flag').onclick=()=>save('flagged');
 window.onbeforeunload=e=>{if(dirty){e.preventDefault();e.returnValue='';}};
 document.onkeydown=e=>{if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;if(e.key==='ArrowRight')next(1);if(e.key==='ArrowLeft')next(-1);};
-fetch('/api/manifest').then(r=>{if(!r.ok)throw Error('Could not load corpus');return r.json();}).then(data=>{manifest=data;const id=location.hash.slice(1);load(data.captures.some(c=>c.id===id)?id:data.captures[0].id);}).catch(e=>{$('#workspace').textContent=e.message;});
+fetch('/api/manifest').then(r=>{if(!r.ok)throw Error('Could not load corpus');return r.json();}).then(data=>{manifest=data;if(data.title){$('h1').textContent=data.title;document.title=`DiceTower · ${data.title}`;}const id=location.hash.slice(1);load(data.captures.some(c=>c.id===id)?id:data.captures[0].id);}).catch(e=>{$('#workspace').textContent=e.message;});
