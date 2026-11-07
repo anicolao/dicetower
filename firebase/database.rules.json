@@ -111,6 +111,61 @@
           }
         }
       }
+    },
+    "metrics": {
+      "$tower": {
+        ".read": "auth != null && query.orderByChild == 'recordedAt' && query.limitToLast != null && query.limitToLast <= 200",
+        ".indexOn": [
+          "recordedAt"
+        ],
+        "$metric": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid == $tower && root.child('towers').child($tower).exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['schemaVersion', 'metricId', 'sessionId', 'recordedAt', 'phase', 'eventId', 'settleMs', 'agreementCount', 'inferenceCount', 'inferenceMs', 'emaInferenceMs', 'processingMs', 'intervalMs'])",
+          "schemaVersion": {
+            ".validate": "(newData.val() == 1) && (!data.exists() || newData.val() == data.val())"
+          },
+          "metricId": {
+            ".validate": "(newData.val() == $metric) && (!data.exists() || newData.val() == data.val())"
+          },
+          "sessionId": {
+            ".validate": "(newData.isString() && newData.val().length > 0 && newData.val().length <= 64) && (!data.exists() || newData.val() == data.val())"
+          },
+          "recordedAt": {
+            ".validate": "(newData.isNumber() && newData.val() > 0 && newData.val() <= now + 300000) && (!data.exists() || newData.val() == data.val())"
+          },
+          "phase": {
+            ".validate": "(newData.val() == 'active' || newData.val() == 'quiescent' || newData.val() == 'paused' || newData.val() == 'error') && (!data.exists() || newData.val() == data.val())"
+          },
+          "eventId": {
+            ".validate": "(newData.isString() && newData.val().length <= 64) && (!data.exists() || newData.val() == data.val())"
+          },
+          "settleMs": {
+            ".validate": "(newData.val() == 200) && (!data.exists() || newData.val() == data.val())"
+          },
+          "agreementCount": {
+            ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 2 && newData.val() % 1 == 0) && (!data.exists() || newData.val() == data.val())"
+          },
+          "inferenceCount": {
+            ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() % 1 == 0) && (!data.exists() || newData.val() == data.val())"
+          },
+          "inferenceMs": {
+            ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 600000) && (!data.exists() || newData.val() == data.val())"
+          },
+          "emaInferenceMs": {
+            ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 600000) && (!data.exists() || newData.val() == data.val())"
+          },
+          "processingMs": {
+            ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() <= 600000) && (!data.exists() || newData.val() == data.val())"
+          },
+          "intervalMs": {
+            ".validate": "(newData.isNumber() && newData.val() >= 50 && newData.val() <= 600000 && newData.val() % 50 == 0) && (!data.exists() || newData.val() == data.val())"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }

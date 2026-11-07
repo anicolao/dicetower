@@ -13,7 +13,7 @@ local. Camera recognition runs without auto photo capture. The sharing row opens
 rename, stop-sharing, and a link to this tower's observer. The phone stays at 1× in
 portrait. Check the tray crop and all face predictions before trusting a roll.
 
-A still scene must agree across three inference results before publication. An
+In version 0.3, a still scene agreed across three inference results before publication; version 0.4 uses the faster policy described below. An
 unchanged reading does not keep publishing. Observed movement rearms the publisher,
 so another roll with identical values still creates a new roll event. A changed,
 stable prediction without new movement creates a `recognitionChanged` event with
@@ -114,3 +114,74 @@ live Firebase QA. The optional live registration UI test also requires
 `DICETOWER_LIVE_QA=1` in the test runner environment, and uses the `QA Simulator Rig`
 name. Remove only the known QA identities/events after live checks; never clear
 the database as part of a test. The normal CI uses only emulators and pure tests.
+
+## Fast recognition and the metrics stream (0.4)
+
+Recognition has a fixed **200 ms** image-stillness window. The adjustable settling
+control in Camera settings now explicitly applies to saved photographs; existing
+photo preferences remain intact. Motion analysis samples at approximately 20 Hz,
+subject to camera frame rate. The short stillness window has no hidden five-frame
+minimum: three or more observations can satisfy it when 200 ms has elapsed.
+
+The recognizer uses a single in-flight request and retains only the latest frame.
+Two consecutive still-frame results must agree on face values, count and positions
+(centers within 0.025 normalized units, independent of detection ordering). A
+mismatch restarts agreement at one. Motion invalidates both pending work and the
+candidate. After the second agreeing result, the app reports once and becomes
+**quiescent**: it stops ML requests and timing samples until motion, a settings
+change, an explicit sharing setup, or camera restart rearms it. Empty detections
+can agree too; they remain an experimental zero-dice observation. New builds do
+not continuously revise a motionless, already-reported scene.
+
+Each completed Vision request is timed using monotonic system uptime. Its EMA is
+initialized from the first measurement and updated as `0.2 * last + 0.8 * EMA`.
+The target start-to-start interval is `max(50, ceil(EMA_ms / 50) * 50)` milliseconds.
+A timer wakes at the next deadline and uses the latest unused camera frame. A
+frame is never inferred twice, and requests never overlap. If full frame work
+outlasts the target, the next wake moves to the following 50 ms clock boundary.
+Camera availability and OS scheduling can make actual starts later. Model loading
+is excluded from these measurements; first-request Vision warm-up is included.
+
+A separate stream at `metrics/<tower UID>/<metric UUID>` contains per-inference
+and state-transition samples. These do not contain images or dice conclusions:
+
+| Field | Meaning |
+| --- | --- |
+| `inferenceMs` | Elapsed time for Vision/Core ML request execution. |
+| `emaInferenceMs` | EMA of request execution time, alpha 0.2. |
+| `processingMs` | Crop/resize/render, request execution and result decoding; excludes model loading, thumbnail encoding, disk and networking. |
+| `intervalMs` | Rounded target interval, a multiple of 50 ms. |
+| `inferenceCount` | Completed requests in this app process, including invalidated results whose timing is still useful. |
+| `agreementCount` | Consecutive accepted still-frame agreements: 0, 1, or 2. |
+| `settleMs` | Fixed recognition settlement requirement: 200. |
+| `phase` | `active`, `quiescent`, `paused`, or `error`. |
+
+Samples also carry schema version, metric ID, app-process session ID, wall-clock
+`recordedAt`, and an `eventId` when associated with a reported recognition.
+The app displays every timing/count/state field above its camera preview. The new
+web panel shows the same values, a sample table, and timing beside matching roll
+cards. Older apps keep working and simply have no timing stream.
+
+Metrics have their own durable outbox subdirectory and are uploaded in batches of
+up to 100. Samples are immutable; exact retries of the same batch are accepted.
+Only the owning anonymous UID can write them; authenticated observers use bounded,
+indexed queries. An immediate drain follows data arriving during an upload, so a
+final idle sample does not wait for the 15-second network-recovery timer. No new
+per-inference samples are generated while ML is idle. Sharing controls apply to
+both images/results and metrics. Published metrics, like published roll history,
+remain visible when sharing stops.
+
+### PR web previews
+
+Preview deployments preserve production and other previews:
+
+```sh
+DICETOWER_WEB_BASE=/dicetower/previews/pr-5/ npm run build
+npm run deploy:pages -- pr-5
+```
+
+The preview then lives at `https://anicolao.github.io/dicetower/previews/pr-5/`.
+Use the actual PR number. Both views read the same Firebase project, so the new
+TestFlight build's metrics can be inspected in the preview while production stays
+on the reviewed web version. `version.json` in each deployment records its source
+commit. A production deploy preserves the `previews/` directory.

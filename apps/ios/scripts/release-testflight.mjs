@@ -10,7 +10,7 @@ const ios=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const repo=path.resolve(ios,'../..');
 const developer=process.env.DICETOWER_XCODE_DEVELOPER_DIR||'/Applications/Xcode.app/Contents/Developer';
 const c=configuration();
-const version=process.env.DICETOWER_MARKETING_VERSION||'0.3.0';
+const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.0';
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 async function command(program,args,log) {
@@ -88,7 +88,7 @@ async function main() {
   const testerID=await assignTester(group.id);
   const testers=await request('GET',`/v1/betaGroups/${group.id}/betaTesters?limit=200`);
   if(!testers.data.some(t=>t.id===testerID))throw new Error('Apple did not confirm internal tester membership.');
-  const notes='Name your DiceTower and enable sharing to view its live roll stream at https://anicolao.github.io/dicetower/. The observer lists towers and shows timestamps, thumbnails, dice values, boxes and totals. Each browser tab can watch a different tower. A still scene publishes once; movement creates a new roll even when the values match, while changed stable predictions are marked as revisions. Rolls queue locally offline and retry without duplicates. Sharing publishes the name, small thumbnails and experimental predictions to observers. Original photos stay local. Use the sharing row to rename or stop sharing. The recommended on-device model and photo collection/export remain available; verify touching dice carefully.';
+  const notes='Faster recognition: fixed 200ms settlement and two agreeing still-frame inferences before reporting. Model inference time is measured for every request; an EMA (alpha 0.2) sets the next target interval, rounded up to 50ms multiples. After reporting, ML stays idle until motion resumes. The camera view shows last inference time, EMA, frame-processing time, target cadence, inference count, agreement and idle/active state. When sharing is enabled, timings publish to a separate Firebase metrics stream, with batched durable retries. The new web metrics panel is available in the PR preview. Saved-photo settling remains independently configurable. The recognition model is unchanged.';
   const localizations=await request('GET',`/v1/builds/${build.id}/betaBuildLocalizations`);
   if(!localizations.data.length)await request('POST','/v1/betaBuildLocalizations',{data:{type:'betaBuildLocalizations',attributes:{locale:'en-CA',whatsNew:notes},relationships:{build:{data:{type:'builds',id:build.id}}}}});
   const detail=await request('GET',`/v1/builds/${build.id}/buildBetaDetail`);

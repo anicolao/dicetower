@@ -4,9 +4,11 @@ import {getDatabase, ref, onValue, query, orderByChild, limitToLast, endBefore, 
 import config from '../../../firebase/client-config.json';
 import {normalizeEvent, mergeEvents, towerLink} from './events.js';
 import './style.css';
+import {sortedMetrics,displayMs} from './metrics.js';
 
 const $ = id => document.getElementById(id);
 const app = initializeApp(config), auth = getAuth(app), db = getDatabase(app);
+let metricSamples = [], unsubscribeMetrics;
 let towers = {}, selected = new URL(location.href).searchParams.get('tower'), events = [], unsubscribe, selection = 0, canLoadOlder = false;
 const clock = new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit',second:'2-digit'});
 const date = new Intl.DateTimeFormat(undefined,{month:'short',day:'numeric',year:'numeric'});
@@ -65,19 +67,38 @@ function renderFeed() {
     for (const die of event.dice) faces.append(text('span',die.value,'face'));if(!event.dice.length)faces.append(text('span','No dice detected','muted'));
     result.append(faces,text('strong',`Σ ${event.total}`,'total'));
     const detail=document.createElement('div');detail.className='card-detail';detail.append(text('span',`${event.count} dice · ${date.format(event.capturedAt)}`),text('span',`Roll ${event.rollId.slice(-6)}`));
+    const timing=metricSamples.find(m=>m.eventId===event.eventId);
+    if(timing)detail.append(text('span',`Inference ${displayMs(timing.inferenceMs)} · EMA ${displayMs(timing.emaInferenceMs)}`));
     card.append(heading,preview,result,detail);$('roll-feed').append(card);
   }
   $('load-older').hidden=!selected||!canLoadOlder;
 }
 function selectTower(id) {
-  selected=id;events=[];selection++;unsubscribe?.();canLoadOlder=false;renderTowers();renderFeed();showError('');
+  selected=id;events=[];metricSamples=[];selection++;unsubscribe?.();unsubscribeMetrics?.();renderMetrics();canLoadOlder=false;renderTowers();renderFeed();showError('');
   if(!id)return;
   const epoch=selection;
+  unsubscribeMetrics=onValue(query(ref(db,`metrics/${id}`),orderByChild('recordedAt'),limitToLast(100)),snapshot=>{
+    if(epoch!==selection)return;
+    metricSamples=sortedMetrics(snapshot.val());renderMetrics();renderFeed();
+  },error=>showError(`Could not load timing metrics: ${error.message}`));
   unsubscribe=onValue(query(ref(db,`rolls/${id}`),orderByChild('capturedAt'),limitToLast(50)),snapshot=>{
     if(epoch!==selection)return;
     const rows=Object.entries(snapshot.val()||{}).map(([key,event])=>normalizeEvent(key,event));
     events=mergeEvents(events,rows);canLoadOlder=rows.length===50;renderFeed();
   },error=>showError(`Could not load this stream: ${error.message}`));
+}
+function renderMetrics() {
+  const latest=metricSamples[0];
+  $('metrics-state').textContent=latest ? (latest.phase==='quiescent'?'Watching for motion · ML idle':latest.phase) : 'Waiting for metrics';
+  $('metrics-state').classList.toggle('idle',latest?.phase==='quiescent');
+  for(const [key,id] of [['inferenceMs','metric-inference'],['emaInferenceMs','metric-ema'],['processingMs','metric-processing'],['intervalMs','metric-interval']]) $(''+id).textContent=latest && (latest.inferenceCount>0 || key==='intervalMs') ? displayMs(latest[key]) : '—';
+  $('metrics-summary').textContent=latest ? `${latest.inferenceCount} inferences · ${latest.agreementCount}/2 agree · ${latest.settleMs} ms settlement · Sample ${clock.format(latest.recordedAt)} · Session ${latest.sessionId.slice(-6)}` : 'New app builds publish timings separately from roll images.';
+  $('metrics-samples').replaceChildren();
+  for(const sample of metricSamples.slice(0,30)) {
+    const row=document.createElement('tr');
+    for(const value of [clock.format(sample.recordedAt),sample.phase,displayMs(sample.inferenceMs),displayMs(sample.emaInferenceMs),displayMs(sample.processingMs),`${sample.intervalMs} ms`,sample.inferenceCount,`${sample.agreementCount}/2`,`${sample.settleMs} ms`,sample.eventId?sample.eventId.slice(-6):'—'])row.append(text('td',value));
+    $('metrics-samples').append(row);
+  }
 }
 $('tower-search').addEventListener('input',renderTowers);
 $('close-snapshot').onclick=()=>$('snapshot-dialog').close();

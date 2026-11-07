@@ -34,6 +34,7 @@ struct CaptureView: View {
                             Text("saved this session").font(.caption).foregroundStyle(.secondary)
                         }
                     }
+                    if let metrics = recognition.metrics { RecognitionMetricsView(metrics: metrics) }
                     ZStack {
                         CameraPreview(session: camera.session)
                         if let demoImage = camera.demoImage { Image(uiImage: demoImage).resizable().scaledToFit() }
@@ -195,13 +196,13 @@ private struct CaptureSettingsView: View {
                 }.frame(width: 150, height: 200).background(.black)
                     .clipShape(RoundedRectangle(cornerRadius: 12)).padding(10)
             Form {
-                Section("Wait for stillness") {
-                    LabeledContent("Settling time", value: String(format: "%.1f seconds", model.parameters.settleDuration))
-                    Slider(value: $model.parameters.settleDuration, in: 0.6...3, step: 0.1).accessibilityLabel("Settling time")
+                Section("Photo capture stillness") {
+                    LabeledContent("Photo settling time", value: String(format: "%.1f seconds", model.parameters.settleDuration))
+                    Slider(value: $model.parameters.settleDuration, in: 0.6...3, step: 0.1).accessibilityLabel("Photo settling time")
                     Picker("Motion sensitivity", selection: $model.parameters.motionThreshold) {
                         Text("High").tag(0.006); Text("Normal").tag(0.012); Text("Low").tag(0.024)
                     }
-                    Text("Use High if a moving die is missed. Use Low if sensor noise keeps the scene from settling.").font(.footnote)
+                    Text("Recognition uses 0.2 seconds of settlement and two agreeing inferences. This settling slider controls saved photographs. Use High if a moving die is missed. Use Low if sensor noise keeps the scene from settling.").font(.footnote)
                 }
                 Section("Tray area") {
                     Text("Match the dashed frame to the inside of the tray. This area is used for recognition and movement detection; the complete photo is saved. Keep every die inside it.").font(.footnote)
@@ -335,5 +336,26 @@ private struct TowerSetupView: View {
             }.navigationTitle("DiceTower sharing")
                 .onAppear { name = cloud.profile?.name ?? "" }
         }.interactiveDismissDisabled(cloud.profile == nil).presentationDetents([.large])
+    }
+}
+
+private struct RecognitionMetricsView: View {
+    let metrics: RecognitionMetrics
+    private func ms(_ value: Double) -> String { metrics.inferenceCount == 0 ? "—" : String(format: "%.1f ms", value) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(metrics.phase == "quiescent" ? "Watching for motion · ML idle" : "Recognition · \(metrics.phase)").font(.caption.bold())
+                Spacer()
+                Text("\(metrics.agreementCount)/2 agree").font(.caption.monospacedDigit())
+            }
+            Text("Inference \(ms(metrics.inferenceMs)) · EMA \(ms(metrics.emaInferenceMs))")
+            Text("Frame \(ms(metrics.processingMs)) · Target \(Int(metrics.intervalMs)) ms")
+            Text("\(metrics.inferenceCount) inferences · \(metrics.settleMs) ms settlement")
+        }.font(.caption2.monospacedDigit()).padding(11)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(mint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            .accessibilityElement(children: .combine).accessibilityIdentifier("recognition-metrics")
+            .accessibilityValue("\(metrics.phase); count \(metrics.inferenceCount); agreement \(metrics.agreementCount); inference \(metrics.inferenceMs); EMA \(metrics.emaInferenceMs); frame \(metrics.processingMs); target \(metrics.intervalMs); settle \(metrics.settleMs)")
     }
 }

@@ -40,3 +40,25 @@ check('invalid predictions, oversized snapshots and unknown fields are rejected;
  const empty={...event(),dice:[],count:0,total:0};
  await assertSucceeds(set(ref(db('owner'),'rolls/owner/e1'),empty));
 });
+function metric(id='m1') { return {schemaVersion:1,metricId:id,sessionId:'session',recordedAt:Date.now(),phase:'quiescent',inferenceMs:19.5,emaInferenceMs:21.2,processingMs:25.1,intervalMs:50,inferenceCount:2,agreementCount:2,settleMs:200,eventId:'e1'}; }
+check('metrics have an independent owner-only stream with bounded observer reads and safe batch retries',async()=>{
+ await set(ref(db('owner'),'towers/owner'),profile);
+ const batch={m1:metric(),m2:metric('m2')};
+ await assertSucceeds(update(ref(db('owner'),'metrics/owner'),batch));
+ await assertSucceeds(update(ref(db('owner'),'metrics/owner'),batch));
+ const page=await assertSucceeds(get(query(ref(db('observer'),'metrics/owner'),orderByChild('recordedAt'),limitToLast(100))));
+ assert.equal(page.child('m1/emaInferenceMs').val(),21.2);
+ await assertFails(update(ref(db('observer'),'metrics/owner'),{m3:metric('m3')}));
+ await assertFails(update(ref(db('owner'),'metrics/owner/m1'),{inferenceMs:99}));
+ await assertFails(remove(ref(db('owner'),'metrics/owner/m1')));
+ await assertFails(get(ref(db('observer'),'metrics/owner')));
+ await assertFails(get(ref(db(),'metrics/owner/m1')));
+ await assertFails(get(query(ref(db('observer'),'metrics/owner'),orderByChild('recordedAt'),limitToLast(201))));
+});
+check('metrics reject unsupported cadence, extra fields and wrong metric IDs',async()=>{
+ await set(ref(db('owner'),'towers/owner'),profile);
+ await assertFails(set(ref(db('owner'),'metrics/owner/m1'),{...metric(),intervalMs:75}));
+ await assertFails(set(ref(db('owner'),'metrics/owner/m1'),{...metric(),eventId:'x'.repeat(65)}));
+ await assertFails(set(ref(db('owner'),'metrics/owner/m1'),{...metric(),secret:'extra'}));
+ await assertFails(set(ref(db('owner'),'metrics/owner/m1'),{...metric(),metricId:'different'}));
+});

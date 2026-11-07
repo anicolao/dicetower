@@ -1,8 +1,10 @@
 # DiceTower Capture for iPhone
 
-Version 0.3 adds named-tower sharing through Firebase and the [web observer](https://anicolao.github.io/dicetower/). Name your tower on first launch and enable sharing to publish roll thumbnails and predictions, or keep capture local. The sharing row controls naming and uploads; published history stays visible after sharing stops. See [the Firebase guide](../../docs/FIREBASE.md).
+Version 0.4 adds fixed 200 ms recognition settlement, two agreeing inferences, an adaptive 50 ms cadence and visible timing metrics. After reporting, ML sleeps until motion resumes. Timing samples publish to their own Firebase stream when sharing is enabled; see [the timing and preview guide](../../docs/FIREBASE.md#fast-recognition-and-the-metrics-stream-04).
 
-Version 0.2 introduced the recommended on-device d6 detector to the camera preview. Boxes show upper-face predictions; yellow means provisional, green means the scene is still and three successive readings agree. The header shows the detected count and total. There is no advance dice count. Verify the highlighted faces, especially touching dice; this is an experimental reading, with no game submission or confirmed-roll history yet.
+Version 0.3 added named-tower sharing through Firebase and the [web observer](https://anicolao.github.io/dicetower/). Name your tower on first launch and enable sharing to publish roll thumbnails and predictions, or keep capture local. The sharing row controls naming and uploads; published history stays visible after sharing stops. See [the Firebase guide](../../docs/FIREBASE.md).
+
+Version 0.2 introduced the recommended on-device d6 detector to the camera preview. Boxes show upper-face predictions; yellow means provisional, green means the scene is still and two successive readings agree. The header shows the detected count and total. There is no advance dice count. Verify the highlighted faces, especially touching dice; this is an experimental reading, with no game submission or confirmed-roll history yet.
 
 Recognition starts with the camera. Auto capture remains a separate opt-in control; use the camera button to collect recognition failures and export them for labeling. Existing sessions survive updates. [Model identity and preprocessing](DiceTower/Models/README.md) are recorded alongside the model resource.
 
@@ -85,8 +87,9 @@ simulator app Documents directory as `recognition-qa.jpg` and launch with
 afterward to restore the generated fixture. Real camera throughput and behavior
 still need testing on the phone.
 
-Recognition runs at most four times per second with one in-flight request and no
-queued frames. Stillness analysis runs separately at about10Hz. Movement, camera
+Recognition uses one in-flight request, the latest unused frame, and an EMA-based
+start-to-start target rounded up to a 50 ms multiple. It stops inference after reporting
+until motion resumes. Stillness analysis runs separately at about20Hz. Movement, camera
 interruptions, suspension and tray-setting changes invalidate the current result.
 The model uses Core ML's available compute units. Inference and model loading
 happen off the camera queue. Camera connection and preview are fixed to portrait.
