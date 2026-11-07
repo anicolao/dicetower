@@ -43,7 +43,7 @@
           };
           deviceTest = pkgs.writeShellApplication {
             name = "dicetower-android-device-test";
-            runtimeInputs = [ pkgs.gradle pkgs.jdk17 (sdkFor true) pkgs.git pkgs.coreutils pkgs.gnugrep ];
+            runtimeInputs = [ pkgs.gradle pkgs.jdk17 (sdkFor true) pkgs.git pkgs.bash pkgs.coreutils pkgs.gnugrep ];
             text = ''
               cd "$(git rev-parse --show-toplevel)"
               ${environment (sdkFor true)}

@@ -23,6 +23,7 @@ local-tools/
 *-debug.log
 .gradle-home/
 apps/android/.gradle/
+apps/android/.kotlin/
 apps/android/**/build/
 apps/android/local.properties
 apps/android/app/src/main/assets/DiceTowerD6.onnx
