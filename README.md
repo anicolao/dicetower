@@ -14,6 +14,7 @@ The prototype will run recognition entirely on the phone and work offline. Train
 
 ## Documents
 
+- [Android prototype and Nix build guide](apps/android/README.md): native CameraX/ONNX recognition, Firebase sharing, APK builds and validation.
 - [docs/FIREBASE.md](docs/FIREBASE.md): named towers, event streams, security, local testing, and deployment.
 - [VISION.md](VISION.md): product direction, principles, and boundaries.
 - [MVP_DESIGN.md](MVP_DESIGN.md): prior-work findings, dataset audit, training experiments, native app architecture, and measurable acceptance gates.

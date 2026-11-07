@@ -1,6 +1,12 @@
 name: Checks
 on: [push, pull_request]
 jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - run: nix run .#android-test
   observer-and-rules:
     runs-on: ubuntu-latest
     steps:
