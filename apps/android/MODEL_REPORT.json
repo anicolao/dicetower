@@ -34,10 +34,10 @@
       5,
       6
     ],
-    "meanInferenceMs": 22.6252875,
-    "p50InferenceMs": 22.416125,
-    "maxInferenceMs": 26.389458,
-    "meanFrameMs": 57.2036126,
-    "note": "One held-out five-die image repeated; timings exclude model initialization and are not a phone performance guarantee."
+    "meanInferenceMs": 81.75628750000001,
+    "p50InferenceMs": 93.23275,
+    "maxInferenceMs": 126.93975,
+    "meanFrameMs": 135.21831260000005,
+    "note": "One held-out five-die image repeated; API 36 virtual-camera emulator with software rendering. CPU contention makes these timings variable; they exclude model initialization and are not a phone performance guarantee."
   }
 }
