@@ -10,7 +10,7 @@ const ios=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const repo=path.resolve(ios,'../..');
 const developer=process.env.DICETOWER_XCODE_DEVELOPER_DIR||'/Applications/Xcode.app/Contents/Developer';
 const c=configuration();
-const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.1';
+const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.2';
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 async function command(program,args,log) {
@@ -95,7 +95,7 @@ async function main() {
   const testerID=await assignTester(group.id);
   const testers=await request('GET',`/v1/betaGroups/${group.id}/betaTesters?limit=200`);
   if(!testers.data.some(t=>t.id===testerID))throw new Error('Apple did not confirm internal tester membership.');
-  const notes='Fix repeated reports of stationary dice: a new roll now requires at least 150ms of sustained spatial movement. Isolated noisy frames, uniform brightness changes, slow exposure drift and camera-frame gaps do not rearm an already reported scene. An unsettled frame still invalidates in-progress recognition immediately. Settlement remains 200ms with two agreeing inferences; the adaptive timing display and Firebase streams are unchanged. Please check that leaving dice untouched produces only one report, and that rolling the same values again still produces a new roll. The recognition model and saved-photo capture policy are unchanged.';
+  const notes='Restore sensitivity to quick rolls: rearming now needs two camera observations different from the previous settled scene, rather than 150ms of continuous frame-to-frame movement. A roll that moves and stops quickly, or pauses briefly, can now rearm. Uniform brightness shifts and isolated one-frame disturbances remain filtered. Settlement is still 200ms with two agreeing recognitions; the model and photo capture behavior are unchanged. Please test quick rolls, rerolls with the same values, and leaving the tray untouched.';
   const localizations=await request('GET',`/v1/builds/${build.id}/betaBuildLocalizations`);
   if(!localizations.data.length)await request('POST','/v1/betaBuildLocalizations',{data:{type:'betaBuildLocalizations',attributes:{locale:'en-CA',whatsNew:notes},relationships:{build:{data:{type:'builds',id:build.id}}}}});
   const detail=await request('GET',`/v1/builds/${build.id}/buildBetaDetail`);

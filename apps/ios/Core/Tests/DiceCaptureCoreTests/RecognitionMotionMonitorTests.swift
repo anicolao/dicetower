@@ -52,7 +52,7 @@ final class RecognitionMotionMonitorTests: XCTestCase {
         var newRolls = 0
         for i in 0..<8 {
             let result = monitor.observe(frame(patch: 12 + (i % 5) * 12), at: 0.25 + Double(i) * 0.05)
-            if i < 3 { XCTAssertFalse(result.newRoll) }
+            if i == 0 { XCTAssertFalse(result.newRoll) }
             if result.newRoll { newRolls += 1 }
         }
         XCTAssertEqual(newRolls, 1)
@@ -62,5 +62,19 @@ final class RecognitionMotionMonitorTests: XCTestCase {
             if monitor.observe(frame(patch: 12 + i * 12), at: 1 + Double(i) * 0.05).newRoll { newRolls += 1 }
         }
         XCTAssertEqual(newRolls, 2)
+    }
+    func testFastRollAlreadyStoppedAtSecondObservationStillRearms() {
+        var monitor = settled()
+        XCTAssertFalse(monitor.observe(frame(patch: 24), at: 0.25).newRoll)
+        // No further movement: the dice are already in their new positions.
+        XCTAssertTrue(monitor.observe(frame(patch: 24), at: 0.30).newRoll)
+        for i in 7...30 { XCTAssertFalse(monitor.observe(frame(patch: 24), at: Double(i) * 0.05).newRoll) }
+        XCTAssertTrue(monitor.observe(frame(patch: 24), at: 1.55).still)
+    }
+    func testQuietFrameDuringRollDoesNotEraseEvidenceOfChangedScene() {
+        var monitor = settled()
+        XCTAssertFalse(monitor.observe(frame(patch: 12), at: 0.25).newRoll)
+        XCTAssertTrue(monitor.observe(frame(patch: 12), at: 0.30).newRoll)
+        XCTAssertFalse(monitor.observe(frame(patch: 36), at: 0.35).newRoll)
     }
 }

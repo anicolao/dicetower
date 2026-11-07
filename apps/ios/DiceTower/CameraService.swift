@@ -328,7 +328,10 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     private var demoArrangement = 0
     private var demoMotionTicks = 0
     private var demoTick = 0
-    func nextDemoArrangement() { queue.async { self.demoArrangement += 1; self.demoMotionTicks = 16 } }
+    func nextDemoArrangement() { queue.async {
+        self.demoArrangement += 1
+        self.demoMotionTicks = ProcessInfo.processInfo.arguments.contains("-recognition-fast-roll-demo") ? 2 : 16
+    } }
     private func startDemo() {
         queue.async {
             guard self.demoTimer == nil else { return }

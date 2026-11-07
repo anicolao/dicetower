@@ -1,12 +1,12 @@
 # DiceTower Android prototype
 
-Version 0.1.1 fixes repeated reports of stationary dice: at least 150 ms of
-consecutive spatial motion is required to rearm a published scene. Uniform
-brightness offsets are removed from the rearm score; isolated disturbances,
-slow exposure drift and frame gaps cannot create a roll. Raw differences still
-govern settlement, and gaps reset movement evidence. Movement first invalidates
-an in-progress reading; confirmed movement can produce a new roll with the same
-values. A physical roll hidden entirely by a frame gap cannot be verified.
+Version 0.1.2 restores quick-roll sensitivity: two observations different from
+the previous settled scene rearm recognition, even when the dice stop quickly or
+pause during a roll. The 150 ms continuous-motion requirement is removed. Uniform
+brightness offsets are removed from the rearm score; one-frame disturbances that
+return to the old scene remain filtered. Raw differences govern settlement. Gaps
+reset candidate evidence and cannot alone create a roll; a changed scene after a
+gap must still pass the two-observation check. New rolls can have the same values.
 
 Native Kotlin/Compose, CameraX and on-device ONNX Runtime CPU recognition. Android 10+ (API 29), ARM64 phones, rear camera, portrait orientation. Mount the phone above the black-felt tray with the tray visible; adjust the four crop margins so recognition covers the tray. The preview overlays predictions and displays count, total, inference time, processing time, inference EMA, interval and agreement count. Dice count is inferred automatically.
 
