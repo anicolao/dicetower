@@ -23,8 +23,8 @@ failure behind a generic retrying message.
 - Keep timeouts, offline errors, HTTP 401/429/5xx and cancellation pending for
   retry. The global authenticated tower-identity check still fails safely before
   sending another owner's data. Per-record owner mismatches are held, never retargeted.
-- If a metrics batch is permanently rejected, retry its records individually;
-  acknowledge good samples and hold only rejected samples. Exact immutable retries
+- If a metrics batch is permanently rejected, bisect it until rejected individual records are identified;
+  acknowledge healthy sub-batches and hold only rejected samples. Exact immutable retries
   and conditional roll creates remain in use, preserving lost-ACK idempotency.
 - Stop-sharing checks still stop transmission and preserve both pending and held
   files. Disk failures leave original files intact and surface an error.

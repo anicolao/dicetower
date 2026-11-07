@@ -336,27 +336,28 @@ actor FirebaseTowerClient {
             }
         }
         guard publishing, !records.isEmpty else { return }
+        try await sendMetricBatch(records, towerID: towerID)
+    }
+    private func sendMetricBatch(_ records: [(URL, PendingMetric)], towerID: String) async throws {
+        guard publishing, !records.isEmpty else { return }
         var batch: [String: Any] = [:]
         for (_, pending) in records { batch[pending.metric.metricId] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(pending.metric)) }
         do {
             _ = try await database("metrics/\(towerID)", method: "PATCH", body: JSONSerialization.data(withJSONObject: batch))
-            for (file, _) in records { try FileManager.default.removeItem(at: file) }
         } catch {
             guard Self.permanent(error) else { throw error }
-            // One rejected metric rejects an atomic batch. Retry individually so
-            // good records are acknowledged and only the failing record is held.
-            for (file, pending) in records {
-                guard publishing else { return }
-                do {
-                    let single = [pending.metric.metricId: batch[pending.metric.metricId]!]
-                    _ = try await database("metrics/\(towerID)", method: "PATCH", body: JSONSerialization.data(withJSONObject: single))
-                    try FileManager.default.removeItem(at: file)
-                } catch {
-                    guard Self.permanent(error) else { throw error }
-                    try hold(file, kind: "metrics", error: error)
-                }
+            if records.count == 1 {
+                try hold(records[0].0, kind: "metrics", error: error)
+            } else {
+                // Bisect rejected atomic batches: acknowledge healthy halves in
+                // bulk instead of delaying live rolls behind 100 single writes.
+                let middle = records.count / 2
+                try await sendMetricBatch(Array(records[..<middle]), towerID: towerID)
+                try await sendMetricBatch(Array(records[middle...]), towerID: towerID)
             }
+            return
         }
+        for (file, _) in records { try FileManager.default.removeItem(at: file) }
     }
     func flush(towerID: String) async throws {
         let identity = try await authenticated()

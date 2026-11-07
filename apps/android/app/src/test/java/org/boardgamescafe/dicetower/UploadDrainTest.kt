@@ -80,7 +80,7 @@ class UploadDrainTest {
         backend.rejected.add("bad")
         UploadDrain(backend,outbox).flush("owner"){true}
         assertEquals(0,outbox.count());assertEquals(1,outbox.heldCount());assertTrue(outbox.heldIssue().contains("403"))
-        assertEquals(4,backend.calls.size)
+        assertEquals(5,backend.calls.size)
     }
     @Test fun transientRollFailureDoesNotPreventMetricsAttempt()=runBlocking {
         val outbox=DiskOutbox(folder.newFolder());val backend=Backend();backend.failed=true

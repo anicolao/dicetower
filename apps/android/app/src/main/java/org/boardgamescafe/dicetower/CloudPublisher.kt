@@ -114,18 +114,23 @@ class UploadDrain(private val backend: CloudBackend,private val outbox: DiskOutb
             catch(error: Exception){if(!permanent(error))throw error;hold(file,"metrics",error)}
         }
         if(items.isEmpty())return
+        sendMetricBatch(owner,items,enabled)
+    }
+    private suspend fun sendMetricBatch(owner: String,items: List<DiskOutbox.Item>,enabled: ()->Boolean) {
+        if(!enabled() || items.isEmpty())return
         val batch=JSONObject();for(item in items)batch.put(item.payload.getString("metricId"),item.payload)
-        try {
-            backend.call("metrics/$owner","PATCH",batch)
-            items.forEach { check(it.file.delete()) { "Could not acknowledge metrics" } }
-        } catch(error: Exception) {
+        try {backend.call("metrics/$owner","PATCH",batch)}
+        catch(error: Exception) {
             if(!permanent(error))throw error
-            for(item in items) {
-                if(!enabled())return
-                try {backend.call("metrics/$owner","PATCH",JSONObject().put(item.payload.getString("metricId"),item.payload));check(item.file.delete())}
-                catch(single: Exception){if(!permanent(single))throw single;hold(item.file,"metrics",single)}
+            if(items.size==1)hold(items[0].file,"metrics",error)
+            else {
+                val middle=items.size/2
+                sendMetricBatch(owner,items.take(middle),enabled)
+                sendMetricBatch(owner,items.drop(middle),enabled)
             }
+            return
         }
+        items.forEach { check(it.file.delete()) { "Could not acknowledge metrics" } }
     }
     suspend fun flush(owner: String,enabled: ()->Boolean) {
         check(backend.owner()==owner) { "Tower identity changed; queued data was preserved" }
