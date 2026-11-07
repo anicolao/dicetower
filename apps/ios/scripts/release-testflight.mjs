@@ -10,7 +10,7 @@ const ios=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const repo=path.resolve(ios,'../..');
 const developer=process.env.DICETOWER_XCODE_DEVELOPER_DIR||'/Applications/Xcode.app/Contents/Developer';
 const c=configuration();
-const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.2';
+const version=process.env.DICETOWER_MARKETING_VERSION||'0.4.3';
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 async function command(program,args,log) {
@@ -95,7 +95,7 @@ async function main() {
   const testerID=await assignTester(group.id);
   const testers=await request('GET',`/v1/betaGroups/${group.id}/betaTesters?limit=200`);
   if(!testers.data.some(t=>t.id===testerID))throw new Error('Apple did not confirm internal tester membership.');
-  const notes='Restore sensitivity to quick rolls: rearming now needs two camera observations different from the previous settled scene, rather than 150ms of continuous frame-to-frame movement. A roll that moves and stops quickly, or pauses briefly, can now rearm. Uniform brightness shifts and isolated one-frame disturbances remain filtered. Settlement is still 200ms with two agreeing recognitions; the model and photo capture behavior are unchanged. Please test quick rolls, rerolls with the same values, and leaving the tray untouched.';
+  const notes='Restore the original sensitive detection/arming sequence: one disturbed frame can wake recognition again. After 200ms of stillness and two agreeing inferences, repeated dice values at the same positions are discarded instead of uploaded as another roll. Each discard is recorded in the separate Firebase metrics stream with a session counter and the matching original event ID. Duplicate counts are visible in the app and updated web observer. The duplicate tolerance is 1% of frame width/height at die centers; moved dice or changed values still report. Photo capture and the model are unchanged.';
   const localizations=await request('GET',`/v1/builds/${build.id}/betaBuildLocalizations`);
   if(!localizations.data.length)await request('POST','/v1/betaBuildLocalizations',{data:{type:'betaBuildLocalizations',attributes:{locale:'en-CA',whatsNew:notes},relationships:{build:{data:{type:'builds',id:build.id}}}}});
   const detail=await request('GET',`/v1/builds/${build.id}/buildBetaDetail`);

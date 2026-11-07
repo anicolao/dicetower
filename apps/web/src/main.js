@@ -57,7 +57,7 @@ function renderFeed() {
   const latest=events[0];
   $('latest-dice').textContent=latest?.count ?? '—';$('latest-total').textContent=latest?.total ?? '—';$('latest-time').textContent=latest?clock.format(latest.capturedAt):'—';
   for(const [index,event] of events.entries()) {
-    const card = document.createElement('article');card.className='roll-card';card.dataset.eventId=event.eventId;
+    const card = document.createElement('article');card.className='roll-card';card.dataset.eventId=event.eventId;card.id=`roll-${event.eventId}`;
     const heading=document.createElement('div');heading.className='card-heading';
     const timestamp=text('time',clock.format(event.capturedAt));timestamp.dateTime=new Date(event.capturedAt).toISOString();timestamp.title=new Date(event.capturedAt).toLocaleString();
     heading.append(timestamp,text('span',event.kind==='recognitionChanged'?'Recognition update':index===0?'Latest roll':'Roll',`badge ${event.kind==='recognitionChanged'?'revision':''}`));
@@ -93,10 +93,31 @@ function renderMetrics() {
   $('metrics-state').classList.toggle('idle',latest?.phase==='quiescent');
   for(const [key,id] of [['inferenceMs','metric-inference'],['emaInferenceMs','metric-ema'],['processingMs','metric-processing'],['intervalMs','metric-interval']]) $(''+id).textContent=latest && (latest.inferenceCount>0 || key==='intervalMs') ? displayMs(latest[key]) : '—';
   $('metrics-summary').textContent=latest ? `${latest.inferenceCount} inferences · ${latest.agreementCount}/2 agree · ${latest.settleMs} ms settlement · Sample ${clock.format(latest.recordedAt)} · Session ${latest.sessionId.slice(-6)}` : 'New app builds publish timings separately from roll images.';
+  $('metric-duplicates').textContent=latest?.duplicateCount==null?'—':String(latest.duplicateCount);
+  const duplicate=metricSamples.find(m=>m.sessionId===latest?.sessionId && m.duplicateDiscarded);
+  $('duplicate-summary').textContent=latest?.duplicateCount==null?'This build has not reported duplicate metrics.':`${duplicate?`Latest visible discard: ${clock.format(duplicate.recordedAt)} · matches event ${duplicate.duplicateOfEventId.slice(-6)}.`:'No discard decisions in the recent sample window.'} Duplicate attempts stay out of the roll feed.`;
   $('metrics-samples').replaceChildren();
   for(const sample of metricSamples.slice(0,30)) {
     const row=document.createElement('tr');
-    for(const value of [clock.format(sample.recordedAt),sample.phase,displayMs(sample.inferenceMs),displayMs(sample.emaInferenceMs),displayMs(sample.processingMs),`${sample.intervalMs} ms`,sample.inferenceCount,`${sample.agreementCount}/2`,`${sample.settleMs} ms`,sample.eventId?sample.eventId.slice(-6):'—'])row.append(text('td',value));
+    if(sample.duplicateDiscarded)row.classList.add('duplicate-discard');
+    for(const value of [clock.format(sample.recordedAt),sample.duplicateDiscarded?'Duplicate discarded':sample.phase,displayMs(sample.inferenceMs),displayMs(sample.emaInferenceMs),displayMs(sample.processingMs),`${sample.intervalMs} ms`,sample.inferenceCount,`${sample.agreementCount}/2`,`${sample.settleMs} ms`,sample.duplicateCount??'—'])row.append(text('td',value));
+    const reference=sample.duplicateOfEventId||sample.eventId;
+    const cell=document.createElement('td');
+    if(reference){
+      const link=text('a',`${sample.duplicateDiscarded?'Matches ':''}${reference.slice(-6)}`);link.href=`#roll-${encodeURIComponent(reference)}`;link.title=reference;
+      link.onclick=async event=>{
+        if(events.some(e=>e.eventId===reference))return;
+        event.preventDefault();const epoch=selection;
+        try {
+          const value=await get(ref(db,`rolls/${selected}/${reference}`));if(epoch!==selection)return;
+          const original=normalizeEvent(reference,value.val());
+          if(!original){showError('The referenced roll is unavailable.');return;}
+          events=mergeEvents(events,[original]);renderFeed();document.getElementById(`roll-${reference}`)?.scrollIntoView({block:'center'});
+        }catch(error){if(epoch===selection)showError(`Could not load the referenced roll: ${error.message}`);}
+      };
+      cell.append(link);
+    }else cell.textContent='—';
+    row.append(cell);
     $('metrics-samples').append(row);
   }
 }

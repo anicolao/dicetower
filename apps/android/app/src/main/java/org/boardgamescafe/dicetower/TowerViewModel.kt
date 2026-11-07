@@ -27,6 +27,6 @@ class TowerViewModel(application: Application): AndroidViewModel(application) {
         preferences.edit().putFloat("left",value.left.toFloat()).putFloat("right",value.right.toFloat()).putFloat("top",value.top.toFloat()).putFloat("bottom",value.bottom.toFloat()).apply()
         engine.setRegion(value)
     }
-    fun connect(name: String,onSuccess: ()->Unit) { viewModelScope.launch { if(cloud.configure(name)){engine.reset();onSuccess()} } }
+    fun connect(name: String,onSuccess: ()->Unit) { viewModelScope.launch { if(cloud.configure(name)){engine.reset(clearReportedHistory=true);onSuccess()} } }
     override fun onCleared(){engine.close();super.onCleared()}
 }

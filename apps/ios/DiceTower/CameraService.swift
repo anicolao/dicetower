@@ -11,7 +11,7 @@ import DiceCaptureCore
 final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     let session = AVCaptureSession()
     let recognizer = DiceRecognizer()
-    private var recognitionMotion = RecognitionMotionMonitor()
+    private var recognitionMotion = QuiescenceDetector(parameters: .init(settleDuration: 0.2))
     private var recognitionStill = false
     private let queue = DispatchQueue(label: "org.boardgamescafe.dicetower.camera", qos: .userInitiated)
     private let photoOutput = AVCapturePhotoOutput()
@@ -218,11 +218,12 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
         lastFrameTime = timestamp
         lastFrameArrival = ProcessInfo.processInfo.systemUptime
         let recognitionObservation = recognitionMotion.observe(frame, at: timestamp)
-        recognitionStill = recognitionObservation.still
-        if recognitionObservation.newRoll {
+        if recognitionObservation.shouldCapture {
+            recognitionStill = true
+        } else if recognitionStill && !recognitionMotion.pendingCaptureIsValid {
+            recognitionMotion.reset()
+            recognitionStill = false
             recognizer.reset(newRoll: true)
-        } else if recognitionObservation.invalidated {
-            recognizer.reset(onlyIfActive: true)
         }
         guard runningAuto || pending?.trigger == "automatic" else { return }
         let observation = detector.observe(frame, at: timestamp)

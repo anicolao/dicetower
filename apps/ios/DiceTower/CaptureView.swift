@@ -117,7 +117,7 @@ struct CaptureView: View {
                 }.disabled(!camera.ready || camera.saving || model.loading || model.exporting)
                     .padding(.horizontal, 18).padding(.vertical, 10).background(.regularMaterial)
             }
-            .sheet(isPresented: $cloud.showSetup) { TowerSetupView(cloud: cloud) { camera.recognizer.reset(newRoll: true) } }
+            .sheet(isPresented: $cloud.showSetup) { TowerSetupView(cloud: cloud) { camera.recognizer.reset(newRoll: true, clearReportedHistory: true) } }
             .sheet(isPresented: $settings) { CaptureSettingsView(model: model) }
             .sheet(isPresented: $library) { SessionLibraryView(model: model) }
             .sheet(isPresented: $newSession) {
@@ -352,10 +352,11 @@ private struct RecognitionMetricsView: View {
             Text("Inference \(ms(metrics.inferenceMs)) · EMA \(ms(metrics.emaInferenceMs))")
             Text("Frame \(ms(metrics.processingMs)) · Target \(Int(metrics.intervalMs)) ms")
             Text("\(metrics.inferenceCount) inferences · \(metrics.settleMs) ms settlement")
+            Text("\(metrics.duplicateCount ?? 0) duplicates discarded this session\(metrics.duplicateDiscarded == true ? " · last reading discarded" : "")")
         }.font(.caption2.monospacedDigit()).padding(11)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(mint.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
             .accessibilityElement(children: .combine).accessibilityIdentifier("recognition-metrics")
-            .accessibilityValue("\(metrics.phase); count \(metrics.inferenceCount); agreement \(metrics.agreementCount); inference \(metrics.inferenceMs); EMA \(metrics.emaInferenceMs); frame \(metrics.processingMs); target \(metrics.intervalMs); settle \(metrics.settleMs)")
+            .accessibilityValue("\(metrics.phase); count \(metrics.inferenceCount); agreement \(metrics.agreementCount); inference \(metrics.inferenceMs); EMA \(metrics.emaInferenceMs); frame \(metrics.processingMs); target \(metrics.intervalMs); settle \(metrics.settleMs); duplicates \(metrics.duplicateCount ?? 0)")
     }
 }

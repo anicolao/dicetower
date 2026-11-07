@@ -27,6 +27,10 @@ struct RecognitionMetrics: Codable, Sendable {
     let agreementCount: Int
     var settleMs = 200
     let eventId: String
+    // Optional so pre-upgrade metrics in the durable outbox decode/retry unchanged.
+    var duplicateDiscarded: Bool?
+    var duplicateCount: Int?
+    var duplicateOfEventId: String?
 }
 
 /// Fresh frames only, a single in-flight request, and no ML work while quiescent.
@@ -55,20 +59,23 @@ final class DiceRecognizer: ObservableObject, @unchecked Sendable {
     private let context = CIContext()
     private var model: VNCoreMLModel?
     private var eventGate = RollEventGate() // inference queue only
+    private var reportedFilter = ReportedRollFilter() // lock protects delivery and snapshots
+    private var duplicateCount = 0
     var onRoll: ((CloudRoll) -> Void)?
     var onMetrics: ((RecognitionMetrics) -> Void)?
 
     // Caller holds lock. Timing uses a monotonic clock; recordedAt is for stream display.
-    private func snapshot(eventID: String = "") -> RecognitionMetrics {
+    private func snapshot(eventID: String = "", duplicateOf: String = "") -> RecognitionMetrics {
         RecognitionMetrics(metricId: UUID().uuidString, sessionId: sessionID, recordedAt: Date().timeIntervalSince1970 * 1000,
                            phase: phase, inferenceMs: cycle.inferenceMs, emaInferenceMs: cycle.emaInferenceMs,
                            processingMs: cycle.processingMs, intervalMs: cycle.intervalMs, inferenceCount: cycle.inferenceCount,
-                           agreementCount: cycle.agreementCount, eventId: eventID)
+                           agreementCount: cycle.agreementCount, eventId: eventID,
+                           duplicateDiscarded: !duplicateOf.isEmpty, duplicateCount: duplicateCount, duplicateOfEventId: duplicateOf)
     }
-    func reset(_ message: String = "Waiting for dice to settle…", newRoll: Bool = false, phase: String = "active", onlyIfActive: Bool = false) {
+    func reset(_ message: String = "Waiting for dice to settle…", newRoll: Bool = false, phase: String = "active", clearReportedHistory: Bool = false) {
         lock.lock()
-        if onlyIfActive && self.phase != "active" { lock.unlock(); return }
         generation += 1; cycle.reset(); self.phase = phase
+        if clearReportedHistory { reportedFilter = ReportedRollFilter() }
         latest = nil; lastUsedTimestamp = -.infinity; scheduled = false
         let sample = snapshot()
         if newRoll { queue.async { self.eventGate.moved() } }
@@ -148,9 +155,10 @@ final class DiceRecognizer: ObservableObject, @unchecked Sendable {
             } else {
                 self.cycle.discarded(inferenceMs: inferenceMs, processingMs: processingMs, at: finished); report = false
             }
+            let duplicateOf = report ? (self.reportedFilter.duplicateEventID(for: faces) ?? "") : ""
             self.lock.unlock()
             var event: CloudRoll?
-            if report, let decision = self.eventGate.accept(faces) {
+            if report, duplicateOf.isEmpty, let decision = self.eventGate.accept(faces) {
                 let scale = min(1, 384 / image.extent.width, 512 / image.extent.height)
                 let thumbnail = image.applyingFilter("CILanczosScaleTransform", parameters: [kCIInputScaleKey: scale])
                 guard let cg = self.context.createCGImage(thumbnail, from: thumbnail.extent),
@@ -160,14 +168,20 @@ final class DiceRecognizer: ObservableObject, @unchecked Sendable {
                                   total: faces.reduce(0) { $0 + $1.value }, thumbnail: "data:image/jpeg;base64," + jpeg.base64EncodedString())
             }
             let emittedEvent = event
-            self.lock.lock(); let sample = self.snapshot(eventID: epoch == self.generation ? (event?.eventId ?? "") : ""); self.lock.unlock()
             DispatchQueue.main.async {
+                self.lock.lock()
+                let current = epoch == self.generation
+                if current {
+                    if !duplicateOf.isEmpty { self.duplicateCount += 1 }
+                    if let emittedEvent { self.reportedFilter.record(faces, eventID: emittedEvent.eventId) }
+                }
+                let sample = self.snapshot(eventID: current ? (emittedEvent?.eventId ?? "") : "", duplicateOf: current ? duplicateOf : "")
+                self.lock.unlock()
                 self.metrics = sample; self.onMetrics?(sample)
-                self.lock.lock(); let current = epoch == self.generation; self.lock.unlock()
                 guard current else { return }
                 self.dice = result; self.settled = report
                 if let emittedEvent { self.onRoll?(emittedEvent) }
-                self.message = report ? (result.isEmpty ? "Quiescent · no dice detected · watching for motion" : "Quiescent · reading ready · watching for motion") : "Recognizing · waiting for two agreeing still frames…"
+                self.message = !duplicateOf.isEmpty ? "Quiescent · duplicate discarded · watching for motion" : report ? (result.isEmpty ? "Quiescent · no dice detected · watching for motion" : "Quiescent · reading ready · watching for motion") : "Recognizing · waiting for two agreeing still frames…"
             }
         } catch {
             self.lock.lock(); let valid = epoch == self.generation

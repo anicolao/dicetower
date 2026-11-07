@@ -122,6 +122,7 @@ class MainActivity: ComponentActivity() {
             Text("Inference ${ms(t.inferenceMs)} · EMA ${ms(t.emaInferenceMs)}",fontSize=12.sp,color=ink)
             Text("Frame ${ms(t.processingMs)} · Target ${t.intervalMs.toInt()} ms",fontSize=12.sp,color=ink)
             Text("${t.inferenceCount} inferences · ${t.agreementCount}/2 agree · 200 ms settlement",fontSize=12.sp,color=ink)
+            Text("${t.duplicateCount} duplicates discarded this session${if(t.duplicateDiscarded)" · last reading discarded" else ""}",fontSize=12.sp,color=ink)
         }
     }
 }

@@ -133,18 +133,14 @@ change, an explicit sharing setup, or camera restart rearms it. Empty detections
 can agree too; they remain an experimental zero-dice observation. New builds do
 not continuously revise a motionless, already-reported scene.
 
-In iOS 0.4.2 / Android 0.1.2, rearming requires two camera observations different
-from the previous settled scene (usually 50 ms apart). The earlier 150 ms
-continuous frame-to-frame motion requirement missed quick rolls and has been
-removed. Dice can move and already be stationary at the second observation.
-Uniform luminance offsets are removed from the rearm score; raw differences still
-govern the 200 ms settlement window. One disturbed frame returning to the old scene
-clears the candidate. Frame gaps reset candidate evidence and do not alone rearm;
-a changed scene afterward must pass the same two-observation check. A genuine
-movement episode can report the same values again. An unobserved roll returning
-to the identical scene cannot be distinguished from no roll; returning to the app
-or explicitly restarting recognition starts a fresh observation. Photo capture
-retains its separate stillness/invalidation policy.
+In iOS 0.4.3 / Android 0.1.3, the original sensitive detection/arming sequence is
+restored. A single image disturbance can wake recognition again. Duplicate
+conclusions are filtered **after** recognition, using the last emitted dice
+values and centers (within 1% on each axis, independent of ordering/confidence).
+Each discard produces a timing-stream sample and increments a process-session
+counter, without creating a roll event or uploading another thumbnail. The exact
+sequence, tolerance, sharing/reset behavior and limitations are specified in
+[RECOGNITION.md](RECOGNITION.md).
 
 Each completed Vision request is timed using monotonic system uptime. Its EMA is
 initialized from the first measurement and updated as `0.2 * last + 0.8 * EMA`.
@@ -168,6 +164,9 @@ and state-transition samples. These do not contain images or dice conclusions:
 | `agreementCount` | Consecutive accepted still-frame agreements: 0, 1, or 2. |
 | `settleMs` | Fixed recognition settlement requirement: 200. |
 | `phase` | `active`, `quiescent`, `paused`, or `error`. |
+| `duplicateDiscarded` | Optional boolean: this sample discarded a completed duplicate reading. |
+| `duplicateCount` | Optional cumulative discard count in this app-process session. |
+| `duplicateOfEventId` | Optional original event ID matched by the discard; empty on other samples. |
 
 Samples also carry schema version, metric ID, app-process session ID, wall-clock
 `recordedAt`, and an `eventId` when associated with a reported recognition.

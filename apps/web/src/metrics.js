@@ -1,7 +1,10 @@
 export const numericMetrics = ['inferenceMs','emaInferenceMs','processingMs','intervalMs','inferenceCount','agreementCount','settleMs'];
 export function normalizeMetric(id, raw) {
   if (!raw || raw.schemaVersion !== 1 || !Number.isFinite(raw.recordedAt) || !['active','quiescent','paused','error'].includes(raw.phase) || !numericMetrics.every(k=>Number.isFinite(raw[k]) && raw[k]>=0) || raw.intervalMs<50 || raw.intervalMs%50!==0 || raw.agreementCount>2 || raw.settleMs!==200 || !Number.isInteger(raw.inferenceCount) || !Number.isInteger(raw.agreementCount) || typeof raw.eventId!=='string' || typeof raw.sessionId!=='string') return null;
-  return {...raw, metricId:id};
+  const keys=['duplicateDiscarded','duplicateCount','duplicateOfEventId'];
+  const hasDuplicates=keys.some(k=>Object.hasOwn(raw,k));
+  if(hasDuplicates && (!keys.every(k=>Object.hasOwn(raw,k)) || typeof raw.duplicateDiscarded!=='boolean' || !Number.isInteger(raw.duplicateCount) || raw.duplicateCount<0 || typeof raw.duplicateOfEventId!=='string' || raw.duplicateOfEventId.length>64 || (raw.duplicateDiscarded ? raw.duplicateCount<1 || !raw.duplicateOfEventId || raw.eventId!=='' || raw.phase!=='quiescent' || raw.agreementCount!==2 : raw.duplicateOfEventId!=='')))return null;
+  return {...raw, metricId:id,duplicateCount:hasDuplicates?raw.duplicateCount:null,duplicateDiscarded:raw.duplicateDiscarded??false,duplicateOfEventId:raw.duplicateOfEventId??''};
 }
 export function sortedMetrics(rows) {
   return Object.entries(rows||{}).map(([id,raw])=>normalizeMetric(id,raw)).filter(Boolean).sort((a,b)=>b.recordedAt-a.recordedAt || b.metricId.localeCompare(a.metricId));

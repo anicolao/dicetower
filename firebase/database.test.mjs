@@ -62,3 +62,21 @@ check('metrics reject unsupported cadence, extra fields and wrong metric IDs',as
  await assertFails(set(ref(db('owner'),'metrics/owner/m1'),{...metric(),secret:'extra'}));
  await assertFails(set(ref(db('owner'),'metrics/owner/m1'),{...metric(),metricId:'different'}));
 });
+check('duplicate discards are owner-only immutable metrics, with legacy retries preserved',async()=>{
+ await set(ref(db('owner'),'towers/owner'),profile);
+ const legacy=metric();await assertSucceeds(set(ref(db('owner'),'metrics/owner/m1'),legacy));
+ await assertSucceeds(set(ref(db('owner'),'metrics/owner/m1'),legacy));
+ const duplicate={...metric('m2'),eventId:'',duplicateDiscarded:true,duplicateCount:1,duplicateOfEventId:'e1'};
+ await assertSucceeds(set(ref(db('owner'),'metrics/owner/m2'),duplicate));
+ await assertSucceeds(set(ref(db('owner'),'metrics/owner/m2'),duplicate));
+ assert.equal((await get(ref(db('observer'),'metrics/owner/m2'))).val().duplicateOfEventId,'e1');
+ await assertFails(update(ref(db('owner'),'metrics/owner/m2'),{duplicateCount:2}));
+ await assertFails(update(ref(db('owner'),'metrics/owner/m1'),{duplicateCount:0,duplicateDiscarded:false,duplicateOfEventId:''}));
+ await assertFails(set(ref(db('observer'),'metrics/owner/m3'),{...duplicate,metricId:'m3'}));
+});
+check('malformed duplicate counts, links and states cannot pollute the stream',async()=>{
+ await set(ref(db('owner'),'towers/owner'),profile);
+ const duplicate={...metric(),eventId:'',duplicateDiscarded:true,duplicateCount:1,duplicateOfEventId:'e1'};
+ for(const extra of [{duplicateCount:-1},{duplicateCount:.5},{duplicateCount:0},{duplicateOfEventId:''},{duplicateOfEventId:'x'.repeat(65)},{duplicateDiscarded:'yes'},{eventId:'e2'},{phase:'active'},{agreementCount:1}])await assertFails(set(ref(db('owner'),'metrics/owner/m1'),{...duplicate,...extra}));
+ await assertFails(set(ref(db('owner'),'metrics/owner/m1'),{...metric(),duplicateCount:1}));
+});

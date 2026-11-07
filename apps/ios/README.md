@@ -1,11 +1,10 @@
 # DiceTower Capture for iPhone
 
-Version 0.4.2 restores quick-roll sensitivity after 0.4.1's overly strict motion
-duration rule. Two observations different from the previous settled scene rearm
-recognition, even if the dice have already stopped moving. A one-frame disturbance
-returning to the original scene and uniform brightness shifts remain filtered.
-Recognition still settles in 200 ms and requires two agreements; photo capture
-behavior is unchanged.
+Version 0.4.3 restores the original sensitive detection/arming sequence. After
+recognition, unchanged values/positions are discarded as duplicate reports and
+recorded in the Firebase metrics stream. The app and observer show a session
+counter and matching original event IDs. See [the exact sequence and duplicate
+rule](../../docs/RECOGNITION.md). Settlement remains 200 ms with two agreements.
 
 Version 0.4 adds fixed 200 ms recognition settlement, two agreeing inferences, an adaptive 50 ms cadence and visible timing metrics. After reporting, ML sleeps until motion resumes. Timing samples publish to their own Firebase stream when sharing is enabled; see [the timing and preview guide](../../docs/FIREBASE.md#fast-recognition-and-the-metrics-stream-04).
 

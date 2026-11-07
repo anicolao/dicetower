@@ -51,55 +51,31 @@ class RecognitionCycle {
 
 class SceneMonitor(private val threshold: Double = .012) {
     var still = false; private set
-    var invalidated = false; private set
     private var previous: ByteArray? = null
     private var anchor: ByteArray? = null
     private var since = 0.0
     private var last = Double.NEGATIVE_INFINITY
     private var samples = 0
-    private var sceneReference: ByteArray? = null
-    private var changeSamples = 0
-    private var movementReported = false
-    fun reset() { still=false; invalidated=false; previous=null; anchor=null; last=Double.NEGATIVE_INFINITY; samples=0; sceneReference=null; changeSamples=0; movementReported=false }
-    /** Two observations different from the settled scene; no continuous-motion floor. */
+    fun reset() { still=false; previous=null; anchor=null; last=Double.NEGATIVE_INFINITY; samples=0 }
+    /** True means invalidate the current recognition cycle after motion/gap. */
     fun observe(frame: ByteArray, time: Double): Boolean {
         require(frame.size==96*128)
-        val wasStill=still
-        if(!time.isFinite()){still=false;invalidated=true;changeSamples=0;return false}
         val prior=previous
         val gap=last.isFinite() && (time<=last || time-last>.6)
-        var rearm=false
-        if(prior==null || gap) {
-            still=false;since=time;anchor=frame;samples=1;changeSamples=0
-        } else {
-            if(difference(frame,sceneReference?:prior,true)>threshold) {
-                changeSamples++
-                if(changeSamples>=2 && !movementReported){
-                    rearm=true;movementReported=true
-                    if(still){still=false;since=time;anchor=frame;samples=1}
-                }
-            } else changeSamples=0
-            if(difference(frame,prior,true)>threshold) {
-                still=false;anchor=null;samples=0
-            } else if(anchor==null || difference(frame,prior)>threshold || difference(frame,anchor!!)>threshold) {
-                still=false;since=time;anchor=frame;samples=1
-            } else {
-                samples++
-                if(time-since+1e-9>=.2 && samples>=3){if(!still){sceneReference=frame;changeSamples=0;movementReported=false};still=true}
-            }
-        }
-        invalidated=gap || (wasStill && !still)
+        val moved=prior!=null && (difference(frame,prior) > threshold || difference(frame,anchor?:prior)>threshold)
+        val rearm=gap || (still && moved)
+        if(prior==null || gap || moved) { still=false; since=time; anchor=frame; samples=1 }
+        else { samples++; if(time-since>=.2 && samples>=3)still=true }
         previous=frame; last=time
         return rearm
     }
     companion object {
-        fun difference(a: ByteArray,b: ByteArray,removeBrightness: Boolean=false): Double {
-            val offset=if(removeBrightness)a.indices.sumOf { (a[it].toInt() and 255)-(b[it].toInt() and 255) }.toDouble()/a.size else 0.0
+        fun difference(a: ByteArray,b: ByteArray): Double {
             var sum=0.0;var localMax=0.0
             for(y in 0 until 128 step 12)for(x in 0 until 96 step 12) {
                 var local=0.0;var count=0
                 for(yy in y until min(y+12,128))for(xx in x until min(x+12,96)) {
-                    local+=abs((a[yy*96+xx].toInt() and 255)-(b[yy*96+xx].toInt() and 255)-offset);count++
+                    local+=abs((a[yy*96+xx].toInt() and 255)-(b[yy*96+xx].toInt() and 255));count++
                 }
                 sum+=local;localMax=max(localMax,local/count/255)
             }
@@ -203,4 +179,23 @@ fun sensorPoint(x: Int,y: Int,width: Int,height: Int,rotation: Int): Pair<Int,In
     180 -> width-1-x to height-1-y
     270 -> width-1-y to x
     else -> x to y
+}
+
+/** Matches the last emitted conclusion, independently of motion/rearm state. */
+class ReportedRollFilter {
+    private var previous: List<Face>? = null
+    private var eventId = ""
+    fun duplicateEventId(faces: List<Face>): String? {
+        val old=previous?:return null
+        if(old.size!=faces.size)return null
+        val remaining=old.toMutableList()
+        for(face in faces) {
+            val i=remaining.indexOfFirst { it.value==face.value && abs(it.box.cx-face.box.cx)<.01 && abs(it.box.cy-face.box.cy)<.01 }
+            if(i<0)return null
+            remaining.removeAt(i)
+        }
+        return eventId
+    }
+    fun clear(){previous=null;eventId=""}
+    fun record(faces: List<Face>,id: String){previous=faces.toList();eventId=id}
 }

@@ -11,3 +11,11 @@ test('malformed timing, phases and non-50ms cadence are rejected',()=>{
 test('timing snapshots sort by sample time with deterministic ties',()=>{
  assert.deepEqual(sortedMetrics({old:metric,new:{...metric,recordedAt:200},bad:{}}).map(x=>x.metricId),['new','old']);
 });
+test('legacy metrics remain readable and duplicate decisions carry a match and session count',()=>{
+ assert.equal(normalizeMetric('old',metric).duplicateCount,null);
+ const duplicate={...metric,eventId:'',duplicateDiscarded:true,duplicateCount:3,duplicateOfEventId:'original'};
+ const result=normalizeMetric('m',duplicate);
+ assert.equal(result.duplicateDiscarded,true);assert.equal(result.duplicateCount,3);assert.equal(result.duplicateOfEventId,'original');
+ for(const override of [{duplicateCount:-1},{duplicateCount:1.5},{duplicateCount:0},{duplicateDiscarded:'yes'},{duplicateOfEventId:''},{eventId:'new'},{phase:'active'},{agreementCount:1}])assert.equal(normalizeMetric('bad',{...duplicate,...override}),null);
+ assert.equal(normalizeMetric('partial',{...metric,duplicateCount:1}),null);
+});

@@ -16,7 +16,8 @@ import java.util.concurrent.TimeUnit
 fun monotonicSeconds()=SystemClock.elapsedRealtimeNanos()/1e9
 
 data class Timing(val phase: String="active",val inferenceMs: Double=0.0,val emaInferenceMs: Double=0.0,
-                  val processingMs: Double=0.0,val intervalMs: Double=50.0,val inferenceCount: Int=0,val agreementCount: Int=0)
+                  val processingMs: Double=0.0,val intervalMs: Double=50.0,val inferenceCount: Int=0,val agreementCount: Int=0,
+                  val duplicateCount: Int=0,val duplicateDiscarded: Boolean=false)
 data class RecognitionUi(val faces: List<Face> = emptyList(),val timing: Timing=Timing(),val message: String="Preparing recognition…",val aspect: Float=3f/4f)
 
 class RecognitionEngine(context: Context,private val onRoll: (JSONObject)->Unit,private val onMetric: (JSONObject)->Unit) {
@@ -24,6 +25,9 @@ class RecognitionEngine(context: Context,private val onRoll: (JSONObject)->Unit,
     private val guard=Any()
     private val cycle=RecognitionCycle()
     private val scene=SceneMonitor()
+    private val reportedFilter=ReportedRollFilter()
+    private var duplicateCount=0
+    private var duplicateDiscarded=false
     private val sessionId=UUID.randomUUID().toString()
     private var rollId=UUID.randomUUID().toString()
     private var generation=0
@@ -39,17 +43,19 @@ class RecognitionEngine(context: Context,private val onRoll: (JSONObject)->Unit,
     val ui=_ui.asStateFlow()
     private data class Frame(val image: Bitmap,val still: Boolean,val time: Double,val capturedAt: Long,val region: Region)
 
-    private fun timing()=Timing(phase,cycle.inferenceMs,cycle.emaInferenceMs,cycle.processingMs,cycle.intervalMs,cycle.inferenceCount,cycle.agreementCount)
-    private fun metric(eventId: String=""): JSONObject = JSONObject().apply {
+    private fun timing()=Timing(phase,cycle.inferenceMs,cycle.emaInferenceMs,cycle.processingMs,cycle.intervalMs,cycle.inferenceCount,cycle.agreementCount,duplicateCount,duplicateDiscarded)
+    private fun metric(eventId: String="",duplicateOf: String=""): JSONObject = JSONObject().apply {
         put("schemaVersion",1);put("metricId",UUID.randomUUID().toString());put("sessionId",sessionId)
         put("recordedAt",System.currentTimeMillis());put("phase",phase)
         put("inferenceMs",cycle.inferenceMs);put("emaInferenceMs",cycle.emaInferenceMs);put("processingMs",cycle.processingMs)
         put("intervalMs",cycle.intervalMs);put("inferenceCount",cycle.inferenceCount);put("agreementCount",cycle.agreementCount)
         put("settleMs",200);put("eventId",eventId)
+        put("duplicateCount",duplicateCount);put("duplicateDiscarded",duplicateOf.isNotEmpty());put("duplicateOfEventId",duplicateOf)
     }
-    fun reset(paused: Boolean=false) {
+    fun reset(paused: Boolean=false,clearReportedHistory: Boolean=false) {
         val sample=synchronized(guard) {
-            generation++;cycle.reset();scene.reset();latest=null;scheduled=false;lastUsed=Double.NEGATIVE_INFINITY
+            generation++;cycle.reset();scene.reset();latest=null;scheduled=false;lastUsed=Double.NEGATIVE_INFINITY;duplicateDiscarded=false
+            if(clearReportedHistory)reportedFilter.clear()
             phase=if(paused)"paused" else "active";rollId=UUID.randomUUID().toString()
             _ui.value=_ui.value.copy(faces=emptyList(),timing=timing(),message=if(paused)"Camera paused" else "Waiting for dice to settle…")
             metric()
@@ -60,11 +66,10 @@ class RecognitionEngine(context: Context,private val onRoll: (JSONObject)->Unit,
     fun observeMotion(pixels: ByteArray,time: Double) {
         val sample=synchronized(guard) {
             if(phase=="paused")return
-            val newRoll=scene.observe(pixels,time)
-            if(newRoll || (scene.invalidated && phase=="active")) {
+            if(scene.observe(pixels,time)) {
                 generation++;cycle.reset();latest=null;scheduled=false;lastUsed=Double.NEGATIVE_INFINITY
-                if(newRoll){phase="active";rollId=UUID.randomUUID().toString()}
-                _ui.value=_ui.value.copy(faces=emptyList(),timing=timing(),message=if(newRoll)"Movement detected" else "Waiting for dice to settle…")
+                phase="active";rollId=UUID.randomUUID().toString();duplicateDiscarded=false
+                _ui.value=_ui.value.copy(faces=emptyList(),timing=timing(),message="Movement detected")
                 metric()
             } else null
         }
@@ -106,8 +111,9 @@ class RecognitionEngine(context: Context,private val onRoll: (JSONObject)->Unit,
                 if(result)phase="quiescent"
                 result
             }
+            val duplicateOf=synchronized(guard){if(accepted)reportedFilter.duplicateEventId(analysis.faces)?:"" else ""}
             var event: JSONObject?=null
-            if(accepted) {
+            if(accepted && duplicateOf.isEmpty()) {
                 val scale=minOf(1.0,384.0/frame.image.width,512.0/frame.image.height)
                 val thumbnail=Bitmap.createScaledBitmap(frame.image,maxOf(1,(frame.image.width*scale).toInt()),maxOf(1,(frame.image.height*scale).toInt()),true)
                 val bytes=ByteArrayOutputStream().also { check(thumbnail.compress(Bitmap.CompressFormat.JPEG,60,it)) }.toByteArray()
@@ -125,8 +131,11 @@ class RecognitionEngine(context: Context,private val onRoll: (JSONObject)->Unit,
             }
             synchronized(guard) {
                 if(epoch!=generation) { onMetric(metric());return }
-                _ui.value=RecognitionUi(analysis.faces,timing(),if(accepted)"Quiescent · check the highlighted faces · watching for motion" else "Recognizing · waiting for two agreeing still frames…",frame.image.width.toFloat()/frame.image.height)
-                onMetric(metric(event?.getString("eventId")?:""))
+                duplicateDiscarded=duplicateOf.isNotEmpty()
+                if(duplicateDiscarded)duplicateCount++
+                event?.let { reportedFilter.record(analysis.faces,it.getString("eventId")) }
+                _ui.value=RecognitionUi(analysis.faces,timing(),if(duplicateDiscarded)"Quiescent · duplicate discarded · watching for motion" else if(accepted)"Quiescent · check the highlighted faces · watching for motion" else "Recognizing · waiting for two agreeing still frames…",frame.image.width.toFloat()/frame.image.height)
+                onMetric(metric(event?.getString("eventId")?:"",duplicateOf))
                 event?.let(onRoll)
             }
         } catch(error: Exception) {

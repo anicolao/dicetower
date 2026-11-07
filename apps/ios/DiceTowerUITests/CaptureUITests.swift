@@ -1,7 +1,7 @@
 import XCTest
 
 @MainActor final class CaptureUITests: XCTestCase {
-    func testNoiseAndFrameGapStayIdleButRealMovementRearms() throws {
+    func testNoiseRearmsRecognitionButDuplicateIsDiscardedAndCounted() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-capture-demo", "-recognition-noise-demo", "-recognition-fast-roll-demo"]
         app.launch()
@@ -9,11 +9,14 @@ import XCTest
         expectation(for: NSPredicate(format: "label BEGINSWITH %@", "Quiescent"), evaluatedWith: status)
         waitForExpectations(timeout: 60)
         let metrics = app.descendants(matching: .any)["recognition-metrics"]
+        expectation(for: NSPredicate { element, _ in
+            guard let value = (element as? XCUIElement)?.value as? String else { return false }
+            return value.contains("duplicates ") && !value.contains("duplicates 0")
+        }, evaluatedWith: metrics)
+        waitForExpectations(timeout: 20)
+        expectation(for: NSPredicate(format: "label CONTAINS %@", "duplicate discarded"), evaluatedWith: status)
+        waitForExpectations(timeout: 15)
         let frozen = metrics.value as? String ?? ""
-        XCTAssertTrue(frozen.contains("quiescent"))
-        let unchanged = expectation(for: NSPredicate(format: "value != %@", frozen), evaluatedWith: metrics)
-        unchanged.isInverted = true
-        waitForExpectations(timeout: 7)
         let next = app.buttons["next-arrangement"]
         if !next.isHittable { app.swipeUp() }
         next.tap()
@@ -37,7 +40,7 @@ import XCTest
     func testLiveFirebaseTowerRegistrationAndRollUpload() throws {
         guard ProcessInfo.processInfo.environment["DICETOWER_LIVE_QA"] == "1" else { throw XCTSkip("Live Firebase QA requires explicit opt-in.") }
         let app = XCUIApplication()
-        app.launchArguments = ["-capture-demo", "-cloud-demo", "-cloudTowerOnboarded", "NO"]
+        app.launchArguments = ["-capture-demo", "-recognition-noise-demo", "-cloud-demo", "-cloudTowerOnboarded", "NO"]
         app.launch()
         let field = app.textFields["tower-name"]
         XCTAssertTrue(field.waitForExistence(timeout: 20))

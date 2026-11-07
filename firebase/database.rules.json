@@ -121,7 +121,7 @@
         "$metric": {
           ".read": "auth != null",
           ".write": "auth != null && auth.uid == $tower && root.child('towers').child($tower).exists() && newData.exists()",
-          ".validate": "newData.hasChildren(['schemaVersion', 'metricId', 'sessionId', 'recordedAt', 'phase', 'eventId', 'settleMs', 'agreementCount', 'inferenceCount', 'inferenceMs', 'emaInferenceMs', 'processingMs', 'intervalMs'])",
+          ".validate": "newData.hasChildren(['schemaVersion', 'metricId', 'sessionId', 'recordedAt', 'phase', 'eventId', 'settleMs', 'agreementCount', 'inferenceCount', 'inferenceMs', 'emaInferenceMs', 'processingMs', 'intervalMs']) && (!newData.hasChild('duplicateDiscarded') || (newData.hasChildren(['duplicateCount', 'duplicateOfEventId']) && (newData.child('duplicateDiscarded').val() != true || (newData.child('duplicateCount').val() > 0 && newData.child('duplicateOfEventId').val().length > 0 && newData.child('eventId').val() == '' && newData.child('phase').val() == 'quiescent' && newData.child('agreementCount').val() == 2)))) && ((!newData.hasChild('duplicateDiscarded') && !newData.hasChild('duplicateCount') && !newData.hasChild('duplicateOfEventId')) || newData.hasChildren(['duplicateDiscarded', 'duplicateCount', 'duplicateOfEventId'])) && (!newData.hasChild('duplicateDiscarded') || newData.child('duplicateDiscarded').val() == true || newData.child('duplicateOfEventId').val() == '')",
           "schemaVersion": {
             ".validate": "(newData.val() == 1) && (!data.exists() || newData.val() == data.val())"
           },
@@ -163,6 +163,15 @@
           },
           "$other": {
             ".validate": false
+          },
+          "duplicateDiscarded": {
+            ".validate": "(newData.isBoolean()) && (!data.parent().exists() || newData.val() == data.val())"
+          },
+          "duplicateCount": {
+            ".validate": "(newData.isNumber() && newData.val() >= 0 && newData.val() % 1 == 0) && (!data.parent().exists() || newData.val() == data.val())"
+          },
+          "duplicateOfEventId": {
+            ".validate": "(newData.isString() && newData.val().length <= 64) && (!data.parent().exists() || newData.val() == data.val())"
           }
         }
       }

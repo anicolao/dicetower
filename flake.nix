@@ -62,6 +62,8 @@
       devShells = each (system: let t = tools system; shell = sdk: t.pkgs.mkShell {
         packages = [ sdk t.pkgs.jdk17 t.pkgs.gradle t.pkgs.uv t.pkgs.python312 t.pkgs.git t.pkgs.gh t.pkgs.curl t.pkgs.jq t.pkgs.unzip t.pkgs.firebase-tools t.pkgs.nodejs_24 ];
         shellHook = t.environment sdk;
-      }; in { default = shell t.sdk; android-emulator = shell (t.sdkFor true); model-export = t.pkgs.mkShell { packages = [ t.pkgs.uv t.pkgs.python312 ]; }; });
+      }; in { default = shell t.sdk; android-emulator = shell (t.sdkFor true); model-export = t.pkgs.mkShell { packages = [ t.pkgs.uv t.pkgs.python312 ]; };
+        firebase = t.pkgs.mkShellNoCC { packages = [ t.pkgs.nodejs_24 t.pkgs.jdk21 t.pkgs.firebase-tools t.pkgs.git ]; shellHook = ''export JAVA_HOME="${t.pkgs.jdk21.home}"''; };
+      });
     };
 }
