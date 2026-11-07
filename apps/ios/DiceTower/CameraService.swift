@@ -11,7 +11,7 @@ import DiceCaptureCore
 final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     let session = AVCaptureSession()
     let recognizer = DiceRecognizer()
-    private var recognitionMotion = QuiescenceDetector()
+    private var recognitionMotion = QuiescenceDetector(parameters: .init(settleDuration: 0.2))
     private var recognitionStill = false
     private let queue = DispatchQueue(label: "org.boardgamescafe.dicetower.camera", qos: .userInitiated)
     private let photoOutput = AVCapturePhotoOutput()
@@ -85,13 +85,13 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
 
     func suspend() {
         setAutomatic(false)
-        recognizer.reset("Camera paused")
+        recognizer.reset("Camera paused", phase: "paused")
         queue.async {
             self.recognitionRunning = false
             self.recognitionMotion.reset(); self.recognitionStill = false
             self.detector.reset()
             if self.session.isRunning { self.session.stopRunning() }
-            self.recognizer.reset("Camera paused")
+            self.recognizer.reset("Camera paused", phase: "paused")
             #if DEBUG && targetEnvironment(simulator)
             self.demoTimer?.cancel(); self.demoTimer = nil
             #endif
@@ -114,6 +114,7 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     func update(parameters: CaptureParameters, region: CaptureRegion, lockCamera: Bool) {
         queue.async {
             self.recognitionMotion.parameters = parameters
+            self.recognitionMotion.parameters.settleDuration = 0.2
             self.recognitionMotion.reset(); self.recognitionStill = false
             self.recognizer.reset()
             self.detector.parameters = parameters
@@ -199,8 +200,13 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
 
     private func pauseForInterruption() {
         queue.async {
+            #if DEBUG && targetEnvironment(simulator)
+            // The unconfigured preview session can emit AV errors in fixture mode.
+            // Its synthetic frame source is independent of AVFoundation.
+            if self.demoTimer != nil { return }
+            #endif
             self.recognitionRunning = false
-            self.recognizer.reset("Camera interrupted")
+            self.recognizer.reset("Camera interrupted", phase: "paused")
             self.recognitionMotion.reset(); self.recognitionStill = false
             self.runningAuto = false; self.detector.reset()
             DispatchQueue.main.async { self.automatic = false; self.ready = false; UIApplication.shared.isIdleTimerDisabled = false }
@@ -323,14 +329,16 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     private var demoArrangement = 0
     private var demoMotionTicks = 0
     private var demoTick = 0
-    func nextDemoArrangement() { queue.async { self.demoArrangement += 1; self.demoMotionTicks = 8 } }
+    func nextDemoArrangement() { queue.async { self.demoArrangement += 1; self.demoMotionTicks = 16 } }
     private func startDemo() {
         queue.async {
             guard self.demoTimer == nil else { return }
             self.recognitionRunning = true
+            self.recognitionMotion.reset(); self.recognitionStill = false
+            self.recognizer.reset()
             DispatchQueue.main.async { self.isDemo = true; self.ready = true; UIApplication.shared.isIdleTimerDisabled = true }
             let timer = DispatchSource.makeTimerSource(queue: self.queue)
-            timer.schedule(deadline: .now(), repeating: 0.1)
+            timer.schedule(deadline: .now(), repeating: 0.05)
             timer.setEventHandler { [weak self] in
                 guard let self else { return }
                 self.demoTick += 1
@@ -377,8 +385,7 @@ extension CameraService: AVCaptureVideoDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         guard recognitionRunning else { return }
         let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-        guard timestamp - lastAnalysisTime >= 0.09, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        lastAnalysisTime = timestamp
+        guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         CVPixelBufferLockBaseAddress(buffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
         guard let base = CVPixelBufferGetBaseAddressOfPlane(buffer, 0) else { return }
@@ -396,7 +403,10 @@ extension CameraService: AVCaptureVideoDataOutputSampleBufferDelegate {
                 pixels.append(UInt8(sum / 4))
             }
         }
-        process(.init(width: outWidth, height: outHeight, pixels: pixels), at: timestamp)
+        if timestamp - lastAnalysisTime >= 0.045 {
+            lastAnalysisTime = timestamp
+            process(.init(width: outWidth, height: outHeight, pixels: pixels), at: timestamp)
+        }
         recognizer.submit(CIImage(cvPixelBuffer: buffer), region: region, still: recognitionStill, timestamp: timestamp)
     }
 }

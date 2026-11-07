@@ -27,6 +27,14 @@ final class QuiescenceDetectorTests: XCTestCase {
         XCTAssertEqual(settle(&detector, frame(90), from: 5).filter(\.shouldCapture).count, 1)
     }
 
+    func testShortSettlementHasNoHiddenHalfSecondFloor() {
+        var detector = QuiescenceDetector(parameters: .init(settleDuration: 0.2))
+        for time in [0.0,0.05,0.1,0.15,0.199] { XCTAssertFalse(detector.observe(frame(30), at: time).shouldCapture) }
+        XCTAssertTrue(detector.observe(frame(30), at: 0.2).shouldCapture)
+        _ = detector.observe(frame(220), at: 0.25)
+        XCTAssertFalse(detector.pendingCaptureIsValid)
+    }
+
     func testContinuousMotionNeverCaptures() {
         var detector = QuiescenceDetector()
         for i in 0..<100 {

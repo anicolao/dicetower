@@ -25,12 +25,14 @@ struct CloudRoll: Codable, Sendable {
     @Published private(set) var profile: CloudProfile?
     @Published private(set) var sharing: Bool
     @Published private(set) var queued = 0
+    @Published private(set) var queuedMetrics = 0
     @Published private(set) var status = "Roll sharing is off"
     @Published private(set) var busy = false
     @Published var showSetup = false
     private let client: FirebaseTowerClient?
     private var worker: Task<Void, Never>?
     private var flushing = false
+    private var flushRequested = false
 
     init() {
         #if DEBUG && targetEnvironment(simulator)
@@ -87,17 +89,33 @@ struct CloudRoll: Codable, Sendable {
         do { try await client.enqueue(roll, towerID: profile.id); await flush() }
         catch { status = "Roll could not be queued: \(error.localizedDescription)" }
     }
+    func receiveMetrics(_ sample: RecognitionMetrics) async {
+        guard sharing, let profile, let client else { return }
+        do { try await client.enqueueMetric(sample, towerID: profile.id); await flush() }
+        catch { status = "Metrics could not be queued: \(error.localizedDescription)" }
+    }
     func flush() async {
-        guard sharing, let profile, let client, !flushing else { return }
+        guard sharing, let profile, let client else { return }
+        flushRequested = true
+        guard !flushing else { return }
         flushing = true; defer { flushing = false }
         do {
-            queued = try await client.pendingCount()
-            try await client.flush(towerID: profile.id)
-            queued = try await client.pendingCount()
-            status = "Live · \(profile.name)"
+            // A sample arriving during a request asks for another drain immediately.
+            // The final quiescent sample must not wait for the 15s recovery timer.
+            while sharing && flushRequested {
+                flushRequested = false
+                queued = try await client.pendingCount()
+                queuedMetrics = try await client.pendingMetricsCount()
+                try await client.flush(towerID: profile.id)
+                queued = try await client.pendingCount()
+                queuedMetrics = try await client.pendingMetricsCount()
+                if queued > 0 || queuedMetrics > 0 { flushRequested = true }
+            }
+            if sharing { status = "Live · \(profile.name)" }
         } catch {
             queued = (try? await client.pendingCount()) ?? queued
-            status = queued > 0 ? "\(queued) roll(s) queued · retrying connection" : "Waiting for connection · \(profile.name)"
+            queuedMetrics = (try? await client.pendingMetricsCount()) ?? queuedMetrics
+            status = queued + queuedMetrics > 0 ? "\(queued) rolls, \(queuedMetrics) metrics queued · retrying" : "Waiting for connection · \(profile.name)"
         }
     }
 }
@@ -108,6 +126,7 @@ actor FirebaseTowerClient {
     private struct Configuration: Decodable { let apiKey: String; let databaseURL: String }
     private struct Identity: Codable { let uid: String; var refreshToken: String; var idToken: String; var expires: Date }
     private struct Pending: Codable { let towerID: String; let roll: CloudRoll }
+    private struct PendingMetric: Codable { let towerID: String; let metric: RecognitionMetrics }
     private let config: Configuration
     private let directory: URL
     private var identity: Identity?
@@ -197,6 +216,17 @@ actor FirebaseTowerClient {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try JSONEncoder().encode(Pending(towerID: towerID, roll: roll)).write(to: directory.appendingPathComponent(roll.eventId + ".json"), options: .atomic)
     }
+    func enqueueMetric(_ metric: RecognitionMetrics, towerID: String) throws {
+        let folder = directory.appendingPathComponent("metrics", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try JSONEncoder().encode(PendingMetric(towerID: towerID, metric: metric)).write(to: folder.appendingPathComponent(metric.metricId + ".json"), options: .atomic)
+    }
+    private func metricFiles() throws -> [URL] {
+        let folder = directory.appendingPathComponent("metrics", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: folder.path) else { return [] }
+        return try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil).filter { $0.pathExtension == "json" }.sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+    func pendingMetricsCount() throws -> Int { try metricFiles().count }
     func pendingCount() throws -> Int { try pendingFiles().count }
     private func pendingFiles() throws -> [URL] {
         guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
@@ -222,6 +252,19 @@ actor FirebaseTowerClient {
                 guard existing?["eventId"] as? String == pending.roll.eventId else { throw CloudError.database(412) }
             }
             try FileManager.default.removeItem(at: file)
+        }
+        guard publishing else { return }
+        let files = Array(try metricFiles().prefix(100))
+        if !files.isEmpty {
+            var batch: [String: Any] = [:]
+            for file in files {
+                let pending = try JSONDecoder().decode(PendingMetric.self, from: Data(contentsOf: file))
+                guard pending.towerID == towerID else { throw CloudError.identity }
+                batch[pending.metric.metricId] = try JSONSerialization.jsonObject(with: JSONEncoder().encode(pending.metric))
+            }
+            // Every metric field is immutable, and identical retry batches are allowed.
+            _ = try await database("metrics/\(towerID)", method: "PATCH", body: JSONSerialization.data(withJSONObject: batch))
+            for file in files { try FileManager.default.removeItem(at: file) }
         }
     }
     private enum CloudError: LocalizedError {

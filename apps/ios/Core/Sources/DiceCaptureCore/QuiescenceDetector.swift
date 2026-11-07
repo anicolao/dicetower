@@ -135,7 +135,7 @@ public struct QuiescenceDetector: Sendable {
         }
         quietSamples += 1
         let duration = max(0, timestamp - (stableSince ?? timestamp))
-        if duration >= parameters.settleDuration && quietSamples >= 5 {
+        if duration >= parameters.settleDuration && quietSamples >= 3 {
             pending = true; invalidated = false; stableAnchor = frame
             return result(.capturing, score, 1, true)
         }

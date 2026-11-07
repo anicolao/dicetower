@@ -5,7 +5,7 @@ import XCTest
         let app = XCUIApplication(); app.launchArguments = ["-capture-demo"]; app.launch()
         let sharing = app.buttons["tower-sharing"]
         XCTAssertTrue(sharing.waitForExistence(timeout: 15))
-        if !sharing.isHittable { app.swipeUp() }
+        app.scrollViews.firstMatch.swipeUp()
         sharing.tap()
         XCTAssertTrue(app.textFields["tower-name"].waitForExistence(timeout: 10))
         app.buttons["keep-local"].tap()
@@ -19,14 +19,14 @@ import XCTest
         app.launch()
         let field = app.textFields["tower-name"]
         XCTAssertTrue(field.waitForExistence(timeout: 20))
-        field.tap(); field.typeText("QA Simulator Rig")
+        field.tap(); field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: (field.value as? String ?? "").count) + "QA Simulator Rig")
         app.buttons["connect-tower"].tap()
         let status = app.buttons["tower-sharing"]
         XCTAssertTrue(status.waitForExistence(timeout: 40))
         expectation(for: NSPredicate(format: "label CONTAINS %@", "Live"), evaluatedWith: status)
         waitForExpectations(timeout: 40)
         let recognition = app.staticTexts["recognition-status"]
-        expectation(for: NSPredicate(format: "label BEGINSWITH %@", "Settled"), evaluatedWith: recognition)
+        expectation(for: NSPredicate(format: "label BEGINSWITH %@", "Quiescent"), evaluatedWith: recognition)
         waitForExpectations(timeout: 40)
         attach(app, "07-firebase-sharing")
         let next = app.buttons["next-arrangement"]
@@ -42,8 +42,15 @@ import XCTest
         app.launch()
         let status = app.staticTexts["recognition-status"]
         XCTAssertTrue(status.waitForExistence(timeout: 20))
-        expectation(for: NSPredicate(format: "label BEGINSWITH %@ OR label BEGINSWITH %@", "Settled", "No dice detected"), evaluatedWith: status)
+        expectation(for: NSPredicate(format: "label BEGINSWITH %@ OR label BEGINSWITH %@", "Quiescent", "No dice detected"), evaluatedWith: status)
         waitForExpectations(timeout: 60)
+        let metrics = app.descendants(matching: .any)["recognition-metrics"]
+        XCTAssertTrue(metrics.waitForExistence(timeout: 10))
+        let frozen = metrics.value as? String ?? ""
+        XCTAssertTrue(frozen.contains("quiescent"))
+        let unchanged = expectation(for: NSPredicate(format: "value != %@", frozen), evaluatedWith: metrics)
+        unchanged.isInverted = true
+        waitForExpectations(timeout: 1.0)
         attach(app, "06-live-model-settled")
     }
 

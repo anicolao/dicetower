@@ -24,6 +24,6 @@ regenerating the Xcode project. Xcode compiles it into the app; inference needs 
 network. No captured images are included in the app or this repository.
 
 Model limitations: selected with a small single-session validation set; touching
-dice remain difficult. A stable reading is agreement across three model results
+dice remain difficult. A stable reading is agreement across two model results
 and image stillness, not a guarantee of correctness. Predictions remain separate
 from approved corpus labels and are not automatically submitted to games.
