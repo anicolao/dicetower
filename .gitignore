@@ -16,3 +16,8 @@ __pycache__/
 
 # Local trained model bundled into TestFlight; provenance is tracked separately.
 apps/ios/DiceTower/Models/*.mlmodel
+node_modules/
+apps/web/dist/
+local-tools/
+.firebase/
+*-debug.log

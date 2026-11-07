@@ -8,10 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		08A78C34AB049CFE67C12085 /* CaptureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 452EF5EF6C52CF6F761F500B /* CaptureView.swift */; };
+		138C98DEB50C87B46B4A5A99 /* CloudTowerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 033FBB8B8DE7D5352281A750 /* CloudTowerService.swift */; };
 		1E8408AC39E1DE41B378FD70 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0A35A49CEA0C69A00F2B7B7F /* PrivacyInfo.xcprivacy */; };
 		24C5B74C0339BFB5E3C470BB /* CameraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BE1667E25F6470FDDB73980 /* CameraService.swift */; };
 		2DFF0628CBECB9331AE03D9B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0FCB81A5447C4A1E36C6ABEA /* Assets.xcassets */; };
 		52911B6EB62AA1B86FFCEE91 /* DiceRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8769D71543702923F8F99048 /* DiceRecognizer.swift */; };
+		5A65F4090F3B85FA45050B99 /* FirebaseConfig.json in Resources */ = {isa = PBXBuildFile; fileRef = 45BD29495B6884433196D94D /* FirebaseConfig.json */; };
 		7D1DCBBCE5AE40600B06FB63 /* CaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0AD65DE126F9FDB3D49D8D2 /* CaptureUITests.swift */; };
 		913259457FF633DD4D9D55A4 /* CaptureViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FD25E015C1E38592C40E2C1 /* CaptureViewModel.swift */; };
 		ABC315E0CE8BC077216610E5 /* DiceTowerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F718DA8D57100AA5B23E02F /* DiceTowerApp.swift */; };
@@ -31,6 +33,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		033FBB8B8DE7D5352281A750 /* CloudTowerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudTowerService.swift; sourceTree = "<group>"; };
 		0A35A49CEA0C69A00F2B7B7F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		0FCB81A5447C4A1E36C6ABEA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1CD65BB2643D6201A704C9B7 /* DiceTowerUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DiceTowerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -38,6 +41,7 @@
 		3FD25E015C1E38592C40E2C1 /* CaptureViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureViewModel.swift; sourceTree = "<group>"; };
 		452EF5EF6C52CF6F761F500B /* CaptureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureView.swift; sourceTree = "<group>"; };
 		45AB32AEB68ABEA3A9E6C084 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		45BD29495B6884433196D94D /* FirebaseConfig.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = FirebaseConfig.json; sourceTree = "<group>"; };
 		5C7E7D78785C34DB17CBF241 /* Core */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Core; path = Core; sourceTree = SOURCE_ROOT; };
 		65B7A6B3015C2686FDBC4F25 /* DiceTower.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DiceTower.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7BE1667E25F6470FDDB73980 /* CameraService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraService.swift; sourceTree = "<group>"; };
@@ -100,8 +104,10 @@
 				7BE1667E25F6470FDDB73980 /* CameraService.swift */,
 				452EF5EF6C52CF6F761F500B /* CaptureView.swift */,
 				3FD25E015C1E38592C40E2C1 /* CaptureViewModel.swift */,
+				033FBB8B8DE7D5352281A750 /* CloudTowerService.swift */,
 				8769D71543702923F8F99048 /* DiceRecognizer.swift */,
 				1F718DA8D57100AA5B23E02F /* DiceTowerApp.swift */,
+				45BD29495B6884433196D94D /* FirebaseConfig.json */,
 				45AB32AEB68ABEA3A9E6C084 /* Info.plist */,
 				0A35A49CEA0C69A00F2B7B7F /* PrivacyInfo.xcprivacy */,
 				6F5C41EEAA0A9CEFEEA29933 /* Models */,
@@ -207,6 +213,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2DFF0628CBECB9331AE03D9B /* Assets.xcassets in Resources */,
+				5A65F4090F3B85FA45050B99 /* FirebaseConfig.json in Resources */,
 				1E8408AC39E1DE41B378FD70 /* PrivacyInfo.xcprivacy in Resources */,
 				F73DB82F70590C15E5C35DB9 /* README.md in Resources */,
 			);
@@ -230,6 +237,7 @@
 				24C5B74C0339BFB5E3C470BB /* CameraService.swift in Sources */,
 				08A78C34AB049CFE67C12085 /* CaptureView.swift in Sources */,
 				913259457FF633DD4D9D55A4 /* CaptureViewModel.swift in Sources */,
+				138C98DEB50C87B46B4A5A99 /* CloudTowerService.swift in Sources */,
 				52911B6EB62AA1B86FFCEE91 /* DiceRecognizer.swift in Sources */,
 				ABC315E0CE8BC077216610E5 /* DiceTowerApp.swift in Sources */,
 				E2E82376AF4555440D7AEB79 /* DiceTowerD6.mlmodel in Sources */,
@@ -282,7 +290,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -296,7 +304,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.3.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -413,7 +421,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -433,7 +441,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.3.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

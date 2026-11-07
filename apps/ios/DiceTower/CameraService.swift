@@ -217,7 +217,7 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
         } else if recognitionStill && !recognitionMotion.pendingCaptureIsValid {
             recognitionMotion.reset()
             recognitionStill = false
-            recognizer.reset()
+            recognizer.reset(newRoll: true)
         }
         guard runningAuto || pending?.trigger == "automatic" else { return }
         let observation = detector.observe(frame, at: timestamp)

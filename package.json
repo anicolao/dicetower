@@ -1,0 +1,15 @@
+{
+  "name": "dicetower",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite apps/web --host 127.0.0.1 --port 8770",
+    "build": "vite build apps/web --base=/dicetower/",
+    "test": "node --test firebase/*.test.mjs apps/web/src/*.test.mjs",
+    "test:rules": "firebase emulators:exec --project demo-dicetower --only auth,database 'node --test firebase/*.test.mjs'",
+    "firebase:deploy": "firebase deploy --project dicetower-anicolao --only auth,database",
+    "deploy:pages": "node tools/deploy-pages.mjs"
+  },
+  "dependencies": {"firebase": "13.2.0"},
+  "devDependencies": {"firebase-tools": "15.35.0", "@firebase/rules-unit-testing": "6.0.0", "vite": "7.3.1"}
+}

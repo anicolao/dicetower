@@ -4,6 +4,7 @@ import Combine
 @preconcurrency import CoreML
 @preconcurrency import CoreImage
 import DiceCaptureCore
+import UIKit
 
 struct RecognizedDie: Identifiable, Sendable {
     let id: Int
@@ -23,20 +24,23 @@ final class DiceRecognizer: ObservableObject, @unchecked Sendable {
     private var generation = 0
     private let context = CIContext()
     private var model: VNCoreMLModel?
+    var onRoll: ((CloudRoll) -> Void)?
+    private var eventGate = RollEventGate()
     private var previous: [RecognizedDie] = []
     private var agreement = 0
     private var lastResultTime = -Double.infinity
     private var lastSubmission = -Double.infinity // camera queue only
 
-    func reset(_ message: String = "Waiting for a still scene…") {
+    func reset(_ message: String = "Waiting for a still scene…", newRoll: Bool = false) {
         lock.lock(); generation += 1; lock.unlock()
-        queue.async { self.previous = []; self.agreement = 0; self.lastResultTime = -.infinity }
+        queue.async { self.previous = []; self.agreement = 0; self.lastResultTime = -.infinity; if newRoll { self.eventGate.moved() } }
         DispatchQueue.main.async { self.dice = []; self.settled = false; self.message = message }
     }
 
     func submit(_ image: CIImage, region: CaptureRegion, still: Bool, timestamp: Double) {
         guard timestamp - lastSubmission >= 0.25, gate.wait(timeout: .now()) == .success else { return }
         lastSubmission = timestamp
+        let capturedAt = Date().timeIntervalSince1970 * 1000
         lock.lock(); let epoch = generation; lock.unlock()
         queue.async {
             defer { self.gate.signal() }
@@ -69,10 +73,23 @@ final class DiceRecognizer: ObservableObject, @unchecked Sendable {
                 self.agreement = still && matches && timestamp - self.lastResultTime < 1 ? self.agreement + 1 : 0
                 self.previous = result; self.lastResultTime = timestamp
                 let settled = still && self.agreement >= 2
+                var event: CloudRoll?
+                let faces = result.map { RollFace(value: $0.value, confidence: Double($0.confidence), box: $0.box) }
+                if settled, let decision = self.eventGate.accept(faces) {
+                    let scale = min(1, 384 / image.extent.width, 512 / image.extent.height)
+                    let thumbnail = image.applyingFilter("CILanczosScaleTransform", parameters: [kCIInputScaleKey: scale])
+                    if let cg = self.context.createCGImage(thumbnail, from: thumbnail.extent), let jpeg = UIImage(cgImage: cg).jpegData(compressionQuality: 0.6), jpeg.count < 74000 {
+                        event = CloudRoll(eventId: UUID().uuidString, rollId: decision.rollID, kind: decision.kind,
+                                          capturedAt: capturedAt, dice: faces, count: faces.count,
+                                          total: faces.reduce(0) { $0 + $1.value }, thumbnail: "data:image/jpeg;base64," + jpeg.base64EncodedString())
+                    }
+                }
+                let emittedEvent = event
                 DispatchQueue.main.async {
                     self.lock.lock(); let valid = epoch == self.generation; self.lock.unlock()
                     guard valid else { return }
                     self.dice = result; self.settled = settled
+                    if let emittedEvent { self.onRoll?(emittedEvent) }
                     self.message = settled ? (result.isEmpty ? "No dice detected · check the tray" : "Settled · check the highlighted faces") : "Waiting for a steady reading…"
                 }
             } catch {

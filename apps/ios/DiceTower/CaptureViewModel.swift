@@ -7,6 +7,7 @@ struct ShareArtifact: Identifiable { let id = UUID(); let url: URL }
 
 @MainActor final class CaptureViewModel: ObservableObject {
     let camera = CameraService()
+    let cloud = CloudTowerService()
     let store: CorpusStore
     @Published private(set) var sessions: [CaptureSession] = []
     @Published private(set) var currentSession: CaptureSession?
@@ -29,6 +30,9 @@ struct ShareArtifact: Identifiable { let id = UUID(); let url: URL }
             Task { @MainActor [weak self] in await self?.save(data, thumbnail: thumbnail, record: record, in: sessionID) }
         }
         camera.onError = { [weak self] message in Task { @MainActor in self?.errorMessage = message } }
+        camera.recognizer.onRoll = { [weak self] event in
+            Task { @MainActor [weak self] in await self?.cloud.receive(event) }
+        }
         applySettings()
     }
 
@@ -44,6 +48,7 @@ struct ShareArtifact: Identifiable { let id = UUID(); let url: URL }
         } catch { errorMessage = error.localizedDescription }
         loading = false
         camera.start()
+        cloud.start()
     }
 
     func startAuto() async {
