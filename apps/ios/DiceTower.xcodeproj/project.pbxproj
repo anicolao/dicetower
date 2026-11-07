@@ -11,10 +11,13 @@
 		1E8408AC39E1DE41B378FD70 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 0A35A49CEA0C69A00F2B7B7F /* PrivacyInfo.xcprivacy */; };
 		24C5B74C0339BFB5E3C470BB /* CameraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BE1667E25F6470FDDB73980 /* CameraService.swift */; };
 		2DFF0628CBECB9331AE03D9B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0FCB81A5447C4A1E36C6ABEA /* Assets.xcassets */; };
+		52911B6EB62AA1B86FFCEE91 /* DiceRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8769D71543702923F8F99048 /* DiceRecognizer.swift */; };
 		7D1DCBBCE5AE40600B06FB63 /* CaptureUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0AD65DE126F9FDB3D49D8D2 /* CaptureUITests.swift */; };
 		913259457FF633DD4D9D55A4 /* CaptureViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FD25E015C1E38592C40E2C1 /* CaptureViewModel.swift */; };
 		ABC315E0CE8BC077216610E5 /* DiceTowerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F718DA8D57100AA5B23E02F /* DiceTowerApp.swift */; };
+		E2E82376AF4555440D7AEB79 /* DiceTowerD6.mlmodel in Sources */ = {isa = PBXBuildFile; fileRef = BF0C1E93D17F82C69EF87688 /* DiceTowerD6.mlmodel */; };
 		EA476BCCDBC450177CBA738A /* DiceCaptureCore in Frameworks */ = {isa = PBXBuildFile; productRef = B796A4B6BC500FB4ACC4BAFA /* DiceCaptureCore */; };
+		F73DB82F70590C15E5C35DB9 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = A9DB09C4DFEBE8824405E3C3 /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,6 +41,9 @@
 		5C7E7D78785C34DB17CBF241 /* Core */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Core; path = Core; sourceTree = SOURCE_ROOT; };
 		65B7A6B3015C2686FDBC4F25 /* DiceTower.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DiceTower.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7BE1667E25F6470FDDB73980 /* CameraService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraService.swift; sourceTree = "<group>"; };
+		8769D71543702923F8F99048 /* DiceRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiceRecognizer.swift; sourceTree = "<group>"; };
+		A9DB09C4DFEBE8824405E3C3 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		BF0C1E93D17F82C69EF87688 /* DiceTowerD6.mlmodel */ = {isa = PBXFileReference; lastKnownFileType = file.mlmodel; path = DiceTowerD6.mlmodel; sourceTree = "<group>"; };
 		C0AD65DE126F9FDB3D49D8D2 /* CaptureUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -60,6 +66,15 @@
 				1CD65BB2643D6201A704C9B7 /* DiceTowerUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		6F5C41EEAA0A9CEFEEA29933 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				BF0C1E93D17F82C69EF87688 /* DiceTowerD6.mlmodel */,
+				A9DB09C4DFEBE8824405E3C3 /* README.md */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		8DFFBD6B71F72D993724601B /* DiceTowerUITests */ = {
@@ -85,9 +100,11 @@
 				7BE1667E25F6470FDDB73980 /* CameraService.swift */,
 				452EF5EF6C52CF6F761F500B /* CaptureView.swift */,
 				3FD25E015C1E38592C40E2C1 /* CaptureViewModel.swift */,
+				8769D71543702923F8F99048 /* DiceRecognizer.swift */,
 				1F718DA8D57100AA5B23E02F /* DiceTowerApp.swift */,
 				45AB32AEB68ABEA3A9E6C084 /* Info.plist */,
 				0A35A49CEA0C69A00F2B7B7F /* PrivacyInfo.xcprivacy */,
+				6F5C41EEAA0A9CEFEEA29933 /* Models */,
 			);
 			path = DiceTower;
 			sourceTree = "<group>";
@@ -191,6 +208,7 @@
 			files = (
 				2DFF0628CBECB9331AE03D9B /* Assets.xcassets in Resources */,
 				1E8408AC39E1DE41B378FD70 /* PrivacyInfo.xcprivacy in Resources */,
+				F73DB82F70590C15E5C35DB9 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -212,7 +230,9 @@
 				24C5B74C0339BFB5E3C470BB /* CameraService.swift in Sources */,
 				08A78C34AB049CFE67C12085 /* CaptureView.swift in Sources */,
 				913259457FF633DD4D9D55A4 /* CaptureViewModel.swift in Sources */,
+				52911B6EB62AA1B86FFCEE91 /* DiceRecognizer.swift in Sources */,
 				ABC315E0CE8BC077216610E5 /* DiceTowerApp.swift in Sources */,
+				E2E82376AF4555440D7AEB79 /* DiceTowerD6.mlmodel in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -262,7 +282,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -276,7 +296,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.2.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -393,7 +413,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -413,7 +433,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 0.1.0;
+				MARKETING_VERSION = 0.2.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

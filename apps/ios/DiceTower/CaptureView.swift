@@ -8,12 +8,13 @@ private let mint = Color(red: 0.24, green: 0.85, blue: 0.68)
 struct CaptureView: View {
     @ObservedObject var model: CaptureViewModel
     @ObservedObject private var camera: CameraService
+    @ObservedObject private var recognition: DiceRecognizer
     @Environment(\.scenePhase) private var scenePhase
     @State private var settings = false
     @State private var library = false
     @State private var newSession = false
     @State private var notes = ""
-    init(model: CaptureViewModel) { self.model = model; camera = model.camera }
+    init(model: CaptureViewModel) { self.model = model; camera = model.camera; recognition = model.camera.recognizer }
 
     var body: some View {
         NavigationStack {
@@ -21,8 +22,9 @@ struct CaptureView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("A still moment.").font(.title2.bold())
-                            Text("A better dice dataset.").foregroundStyle(.secondary)
+                            Text(recognition.settled && !recognition.dice.isEmpty ? "\(recognition.dice.count) dice · Total \(recognition.dice.reduce(0) { $0 + $1.value })" : "Reading dice…")
+                                .font(.title2.bold()).accessibilityIdentifier("roll-result")
+                            Text(recognition.message).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("recognition-status")
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 0) {
@@ -34,7 +36,7 @@ struct CaptureView: View {
                     ZStack {
                         CameraPreview(session: camera.session)
                         if let demoImage = camera.demoImage { Image(uiImage: demoImage).resizable().scaledToFit() }
-                        if camera.ready { TrayOverlay(region: model.region) }
+                        if camera.ready { TrayOverlay(region: model.region); DiceOverlay(dice: recognition.dice, settled: recognition.settled) }
                         if !camera.ready {
                             VStack(spacing: 14) {
                                 Image(systemName: "camera.viewfinder").font(.largeTitle)
@@ -59,7 +61,7 @@ struct CaptureView: View {
                             if camera.saving { ProgressView() }
                         }
                         ProgressView(value: camera.progress).tint(mint)
-                        Text("Keep the tray edges in view. Roll or rearrange the dice; one photo saves after the scene settles.")
+                        Text("Experimental: check every highlighted face, especially touching dice. The camera button saves a failure; auto capture saves one photo per still scene.")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                     if let session = model.currentSession {
@@ -192,16 +194,16 @@ private struct CaptureSettingsView: View {
                     Text("Use High if a moving die is missed. Use Low if sensor noise keeps the scene from settling.").font(.footnote)
                 }
                 Section("Tray area") {
-                    Text("Match the dashed frame to the inside of the tray. Only this area is checked for movement; the complete photo is saved.").font(.footnote)
+                    Text("Match the dashed frame to the inside of the tray. This area is used for recognition and movement detection; the complete photo is saved. Keep every die inside it.").font(.footnote)
                     inset("Left", $model.region.left); inset("Right", $model.region.right)
                     inset("Top", $model.region.top); inset("Bottom", $model.region.bottom)
-                    Button("Reset tray area") { model.region = .init() }
+                    Button("Reset tray area") { model.region = .init(left: 10.0/900, top: 0.1, right: 150.0/900, bottom: 0.1) }
                 }
                 Section("Camera") {
                     Toggle("Lock focus, exposure & white balance", isOn: $model.lockCamera)
                     Text("Let the camera adjust to the tray first, then lock it for consistent photos. Flash stays off and the rear wide camera stays at 1×.").font(.footnote)
                 }
-                Section("Storage") { Text("Original JPEGs and capture metadata stay in DiceTower’s Documents folder. Export a session ZIP using Share, or copy the DiceTower folder using Files/Finder. No recognition labels are generated.").font(.footnote) }
+                Section("Storage") { Text("Original JPEGs and capture metadata stay in DiceTower’s Documents folder. Export a session ZIP using Share, or copy the DiceTower folder using Files/Finder. Live model predictions are experimental and are not saved as approved labels.").font(.footnote) }
             }
             }.navigationTitle("Capture settings").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
@@ -273,5 +275,23 @@ private struct SessionPhotosView: View {
                         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { selected = nil } } }
                 }
             }
+    }
+}
+
+private struct DiceOverlay: View {
+    let dice: [RecognizedDie]
+    let settled: Bool
+    var body: some View {
+        GeometryReader { geometry in
+            ForEach(dice) { die in
+                let rect = CGRect(x: die.box.minX * geometry.size.width, y: die.box.minY * geometry.size.height,
+                                  width: die.box.width * geometry.size.width, height: die.box.height * geometry.size.height)
+                RoundedRectangle(cornerRadius: 4).stroke(settled ? mint : .yellow, lineWidth: 2)
+                    .frame(width: rect.width, height: rect.height).position(x: rect.midX, y: rect.midY)
+                Text("\(die.value)").font(.system(.body, design: .rounded, weight: .bold)).foregroundStyle(.black)
+                    .padding(4).background(settled ? mint : .yellow, in: RoundedRectangle(cornerRadius: 4))
+                    .position(x: rect.midX, y: max(14, rect.minY - 13))
+            }
+        }.allowsHitTesting(false).accessibilityHidden(true)
     }
 }

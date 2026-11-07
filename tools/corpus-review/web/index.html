@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DiceTower · Golden master review</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+<header><div><span class="eyebrow">DICETOWER / CORPUS LAB</span><h1>Golden master review</h1></div><div id="progress"></div><a href="/api/approved" target="_blank">Approved JSON ↗</a></header>
+<main><nav aria-label="Capture list"><div class="navtitle"><strong>50 captures</strong><select id="filter" aria-label="Filter captures"><option value="all">All captures</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="flagged">Flagged</option></select></div><div id="list"></div></nav>
+<section id="workspace"><div class="capturehead"><div><span id="status" class="badge"></span><h2 id="title"></h2><small id="captureid"></small></div><div><button id="prev" title="Previous capture">←</button> <button id="next" title="Next capture">→</button></div></div>
+<div class="toolbar"><button id="overlay" aria-pressed="true">Hide boxes</button><button id="add" aria-pressed="false">+ Draw a die</button><button id="zoom">Zoom in</button><a id="original" target="_blank">Full resolution ↗</a></div>
+<div id="imagewell"><svg id="canvas" aria-label="Capture photo with editable dice boxes"><image id="photo" x="0" y="0"/><g id="boxes"></g></svg></div>
+<p class="help">Select a box to move it. Drag its corner handles to resize. “Draw a die” adds a missing face. Boxes enclose the upper face; side pips do not count.</p>
+</section>
+<aside><div id="conclusion"></div><p class="provisional">Proposed labels · awaiting your review</p><div id="analysis"></div><div id="dice"></div><div class="notes"><label for="notes">Your review notes</label><textarea id="notes" rows="3" placeholder="Corrections, uncertainty, or reasons to exclude…"></textarea></div><div class="actions"><button id="approve" class="primary">Approve & next</button><button id="save">Save edits as pending</button><button id="flag">Flag for revision</button><span id="feedback" role="status"></span></div><p class="help">Approval saves a golden master locally. Editing an approved capture and saving as pending removes it from the approved set.</p></aside></main>
+<script src="/app.js"></script></body></html>
