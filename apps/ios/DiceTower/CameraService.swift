@@ -17,6 +17,7 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     private let photoOutput = AVCapturePhotoOutput()
     private let videoOutput = AVCaptureVideoDataOutput()
     private var device: AVCaptureDevice?
+    private var torchObservations: [NSKeyValueObservation] = []
     private var configured = false
     private var recognitionRunning = false
     private var runningAuto = false
@@ -32,6 +33,10 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
     private var corpusSessionID: UUID?
     private var observers: [NSObjectProtocol] = []
 
+    @Published private(set) var torchAvailable = false
+    @Published private(set) var torchOn = false
+    @Published private(set) var torchChanging = false
+    @Published private(set) var torchMessage = "Light unavailable on this camera"
     @Published private(set) var ready = false
     @Published private(set) var automatic = false
     @Published private(set) var saving = false
@@ -88,6 +93,7 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
         recognizer.reset("Camera paused", phase: "paused")
         queue.async {
             self.recognitionRunning = false
+            self.applyTorch(false)
             self.recognitionMotion.reset(); self.recognitionStill = false
             self.detector.reset()
             if self.session.isRunning { self.session.stopRunning() }
@@ -97,6 +103,33 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
             #endif
             DispatchQueue.main.async { self.ready = false; UIApplication.shared.isIdleTimerDisabled = false }
         }
+    }
+
+    /// Continuous illumination for video recognition, not a photo flash.
+    func setTorch(_ enabled: Bool) {
+        DispatchQueue.main.async { self.torchChanging = true }
+        queue.async { self.applyTorch(enabled) }
+    }
+    private func refreshTorchState(message: String? = nil) {
+        let available = recognitionRunning && session.isRunning && device?.hasTorch == true && device?.isTorchAvailable == true
+        let on = device?.isTorchActive == true
+        DispatchQueue.main.async {
+            self.torchAvailable = available; self.torchOn = on
+            if let message { self.torchMessage = message }
+            else { self.torchMessage = available ? "Continuous light for the tray" : "Light unavailable on this camera" }
+        }
+    }
+    private func applyTorch(_ enabled: Bool) {
+        defer { DispatchQueue.main.async { self.torchChanging = false } }
+        guard let device, device.hasTorch else { refreshTorchState(); return }
+        guard !enabled || (recognitionRunning && session.isRunning && device.isTorchAvailable) else { refreshTorchState(); return }
+        do {
+            try device.lockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            if enabled { try device.setTorchModeOn(level: AVCaptureDevice.maxAvailableTorchLevel) }
+            else { device.torchMode = .off }
+            refreshTorchState()
+        } catch { refreshTorchState(message: "Could not change the light: \(error.localizedDescription)") }
     }
 
     func setAutomatic(_ enabled: Bool) {
@@ -161,6 +194,10 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
                 guard session.canAddInput(input), session.canAddOutput(photoOutput), session.canAddOutput(videoOutput) else { throw CameraError.unavailable }
                 session.addInput(input); session.addOutput(photoOutput); session.addOutput(videoOutput)
                 device = camera
+                torchObservations = [
+                    camera.observe(\.isTorchAvailable, options: [.new]) { [weak self] _, _ in self?.queue.async { [weak self] in self?.refreshTorchState() } },
+                    camera.observe(\.isTorchActive, options: [.new]) { [weak self] _, _ in self?.queue.async { [weak self] in self?.refreshTorchState() } }
+                ]
                 videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
                 videoOutput.alwaysDiscardsLateVideoFrames = true
                 videoOutput.setSampleBufferDelegate(self, queue: queue)
@@ -179,6 +216,7 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
             if !session.isRunning { session.startRunning() }
             detector.reset()
             recognitionRunning = true
+            applyTorch(false)
             recognitionMotion.reset(); recognitionStill = false
             recognizer.reset()
             DispatchQueue.main.async { self.ready = true; self.permissionDenied = false; UIApplication.shared.isIdleTimerDisabled = true }
@@ -206,6 +244,8 @@ final class CameraService: NSObject, ObservableObject, @unchecked Sendable {
             if self.demoTimer != nil { return }
             #endif
             self.recognitionRunning = false
+            self.applyTorch(false)
+            if self.session.isRunning { self.session.stopRunning() }
             self.recognizer.reset("Camera interrupted", phase: "paused")
             self.recognitionMotion.reset(); self.recognitionStill = false
             self.runningAuto = false; self.detector.reset()
@@ -431,7 +471,7 @@ extension CameraService: AVCapturePhotoCaptureDelegate {
             guard self.pending?.id == photo.resolvedSettings.uniqueID else { return }
             if let error { self.pending = nil; self.detector.completeCapture(saved: false, at: self.lastFrameTime); self.fail(error.localizedDescription); return }
             guard let data = photo.fileDataRepresentation() else { self.pending = nil; self.fail("The camera returned no image data."); return }
-            var camera = ["camera": self.device?.localizedName ?? "Rear wide camera", "lens": "rear wide · 1×", "focusExposureWhiteBalanceLocked": String(self.locked)]
+            var camera = ["camera": self.device?.localizedName ?? "Rear wide camera", "lens": "rear wide · 1×", "focusExposureWhiteBalanceLocked": String(self.locked), "torchOn": String(self.device?.isTorchActive == true)]
             if let device = self.device {
                 camera["iso"] = String(device.iso); camera["exposureSeconds"] = String(device.exposureDuration.seconds)
                 camera["lensPosition"] = String(device.lensPosition)

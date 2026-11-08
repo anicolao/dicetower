@@ -1,5 +1,7 @@
 # DiceTower Android prototype
 
+Version 0.1.6 adds **Dice light**, a continuous rear-camera torch toggle above the preview. It starts off and turns off on camera pause/backgrounding/interruption. The UI follows the actual light state, disables the control when unavailable, and shows control errors. It does not persist an on preference. Physical LED/brightness/thermal behavior requires a real phone; simulators and cameras without a flash cannot illuminate the tray.
+
 Version 0.1.5 normalizes finite confidence to [0,1], automatically recovers the known tiny confidence overflow in held rolls with original IDs, and shows queued/delivered/rejected status with dice values. Rejected or unsaved events cease to suppress future readings; offline pending events still prevent duplicates. Original repaired payloads are retained under Recovered. See [delivery recovery](../../docs/UPLOAD_RECOVERY.md).
 
 Version 0.1.4 fixes upload queue blocking and adds held-upload recovery and diagnostics. See [the recovery policy](../../docs/UPLOAD_RECOVERY.md). Recognition/arming are unchanged.

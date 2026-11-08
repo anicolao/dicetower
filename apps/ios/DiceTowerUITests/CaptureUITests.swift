@@ -74,6 +74,10 @@ import XCTest
         waitForExpectations(timeout: 60)
         let metrics = app.descendants(matching: .any)["recognition-metrics"]
         XCTAssertTrue(metrics.waitForExistence(timeout: 10))
+        let torch = app.switches["torch-toggle"]
+        XCTAssertTrue(torch.exists)
+        XCTAssertFalse(torch.isEnabled) // Simulator fixture has no physical light.
+        XCTAssertEqual(torch.value as? String, "0")
         let frozen = metrics.value as? String ?? ""
         XCTAssertTrue(frozen.contains("quiescent"))
         let unchanged = expectation(for: NSPredicate(format: "value != %@", frozen), evaluatedWith: metrics)

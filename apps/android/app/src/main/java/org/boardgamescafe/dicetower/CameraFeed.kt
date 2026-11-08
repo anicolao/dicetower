@@ -19,12 +19,12 @@ import java.util.concurrent.Executors
 import kotlin.math.*
 
 /** Rotation is explicit; both use cases use the same portrait viewport/crop. */
-@Composable fun CameraFeed(engine: RecognitionEngine,region: Region,modifier: Modifier=Modifier,onError: (String)->Unit) {
+@Composable fun CameraFeed(engine: RecognitionEngine,region: Region,modifier: Modifier=Modifier,light: CameraLight?=null,onError: (String)->Unit) {
     val context=LocalContext.current;val lifecycle=LocalLifecycleOwner.current
     val executor=remember { Executors.newSingleThreadExecutor() }
     val preview=remember { PreviewView(context).apply { implementationMode=PreviewView.ImplementationMode.COMPATIBLE;scaleType=PreviewView.ScaleType.FIT_CENTER } }
     val currentRegion by rememberUpdatedState(region)
-    DisposableEffect(lifecycle,engine) {
+    DisposableEffect(lifecycle,engine,light) {
         var disposed=false
         var provider: ProcessCameraProvider?=null
         val future=ProcessCameraProvider.getInstance(context)
@@ -47,11 +47,12 @@ import kotlin.math.*
                     finally {image.close()}
                 }
                 val group=UseCaseGroup.Builder().setViewPort(ViewPort.Builder(Rational(3,4),Surface.ROTATION_0).setScaleType(ViewPort.FIT).build()).addUseCase(display).addUseCase(analysis).build()
-                cameraProvider.bindToLifecycle(lifecycle,CameraSelector.DEFAULT_BACK_CAMERA,group)
+                val camera=cameraProvider.bindToLifecycle(lifecycle,CameraSelector.DEFAULT_BACK_CAMERA,group)
+                light?.attach(camera,lifecycle,ContextCompat.getMainExecutor(context))
                 onError("")
             }catch(error: Exception){onError("Rear camera unavailable. Check camera permission and reopen the app.")}
         },ContextCompat.getMainExecutor(context))
-        onDispose { disposed=true;provider?.unbindAll();executor.shutdown() }
+        onDispose { disposed=true;light?.detach();provider?.unbindAll();executor.shutdown() }
     }
     AndroidView(factory={preview},modifier=modifier)
 }
