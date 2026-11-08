@@ -34,6 +34,7 @@ class CameraUiTest {
                 File(context.noBackupFilesDir,"android-ui.png").outputStream().use { debug.compress(Bitmap.CompressFormat.PNG,100,it) }
             }
             compose.onNodeWithText("DiceTower").assertExists()
+            compose.onNodeWithTag("torch-toggle").assertExists().assertIsOff()
             // The emulator virtual scene animates its TV; idle is tested separately with controlled frames.
             compose.onNodeWithText("Inference ",substring=true).assertExists()
             compose.onNodeWithText("Target",substring=true).assertExists()

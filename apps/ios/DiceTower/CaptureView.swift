@@ -34,6 +34,14 @@ struct CaptureView: View {
                             Text("saved this session").font(.caption).foregroundStyle(.secondary)
                         }
                     }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Toggle(isOn: Binding(get: { camera.torchOn }, set: { camera.setTorch($0) })) {
+                            Label("Dice light", systemImage: camera.torchOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                        }
+                        .disabled(!camera.ready || !camera.torchAvailable || camera.torchChanging)
+                        .accessibilityIdentifier("torch-toggle")
+                        Text(camera.torchMessage).font(.caption).foregroundStyle(.secondary)
+                    }
                     if let metrics = recognition.metrics { RecognitionMetricsView(metrics: metrics) }
                     ZStack {
                         CameraPreview(session: camera.session)

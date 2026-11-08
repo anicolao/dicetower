@@ -26,6 +26,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -48,6 +51,7 @@ class MainActivity: ComponentActivity() {
 
 @Composable private fun TowerScreen(model: TowerViewModel=viewModel()) {
     val context=LocalContext.current
+    val light=remember { CameraLight() }
     val state by model.engine.ui.collectAsStateWithLifecycle()
     val cloud by model.cloud.ui.collectAsStateWithLifecycle()
     val region by model.region.collectAsStateWithLifecycle()
@@ -80,10 +84,15 @@ class MainActivity: ComponentActivity() {
             }
             Text(message,style=MaterialTheme.typography.headlineSmall,color=ink)
             Text(cameraError?:state.message,fontSize=12.sp,color=ink)
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text("Dice light",modifier=Modifier.weight(1f),color=ink)
+                Switch(checked=light.on,onCheckedChange={light.set(it)},enabled=light.available && !light.busy,modifier=Modifier.testTag("torch-toggle").semantics { contentDescription="Dice light" })
+            }
+            Text(light.message,fontSize=12.sp,color=ink)
             MetricsPanel(state.timing)
             Text(cloud.delivery,fontSize=12.sp,color=ink)
             Box(Modifier.fillMaxWidth().aspectRatio(3f/4f).background(Color.Black)) {
-                if(permission)CameraFeed(model.engine,region,Modifier.fillMaxSize()){cameraError=it.takeIf { message -> message.isNotEmpty() }}
+                if(permission)CameraFeed(model.engine,region,Modifier.fillMaxSize(),light){cameraError=it.takeIf { message -> message.isNotEmpty() }}
                 else Column(Modifier.align(Alignment.Center).padding(20.dp),horizontalAlignment=Alignment.CenterHorizontally) {
                     Text("Allow the rear camera to recognize dice.",color=Color.White)
                     Button(onClick={if(!asked){asked=true;launcher.launch(Manifest.permission.CAMERA)}else context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:${context.packageName}")))}) { Text(if(asked)"Open camera settings" else "Allow camera") }
